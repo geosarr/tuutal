@@ -1,8 +1,9 @@
 mod steepest_descent;
 mod traits;
-use ndarray::{
+pub use ndarray::{
+    array,
     prelude::{ArrayBase, Dim},
-    OwnedRepr,
+    s, OwnedRepr,
 };
 pub use steepest_descent::{steepest_descent, SteepestDescentIterates, SteepestDescentParameter};
 pub use traits::DefaultValue;

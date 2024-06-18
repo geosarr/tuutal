@@ -9,6 +9,7 @@ use std::{
 
 type StepSizeFunction<X, A> =
     fn(fn(&X) -> A, fn(&X) -> X, &X, &X, &SteepestDescentParameter<A>) -> A;
+
 /// Parameters used in the steepest descent method.
 #[derive(Debug, Clone, Copy)]
 pub enum SteepestDescentParameter<T> {
@@ -129,6 +130,44 @@ where
 
 /// The steepest descent algorithm using Armijo or Powell Wolfe step size methods.
 /// It requires an initial guess **x0**.
+/// ```
+/// use tuutal::{VecType, array, steepest_descent, SteepestDescentParameter};
+/// // Example from python scipy.optimize.minimize_scalar
+/// let f = |x: &VecType<f32>| (x[0] - 2.) * x[0] * (x[0] + 2.).powi(2);
+/// let gradf = |x: &VecType<f32>| array![2. * (x[0] + 2.) * (2. * x[0].powi(2) - x[0] - 1.)];
+/// let x0 = &array![-1.];
+///
+/// let x_star = steepest_descent(f, gradf, &x0, &SteepestDescentParameter::Armijo(1e-2, 0.25), 1e-3, 10);
+/// assert!((-2. - x_star.unwrap()[0]).abs() < 1e-10);
+///
+/// let x_star = steepest_descent(f, gradf, &x0, &SteepestDescentParameter::PowellWolfe(1e-2, 0.9), 1e-3, 10);
+/// assert!((-2. - x_star.unwrap()[0]).abs() < 1e-10);
+///
+///
+/// // The default algorithm uses Armijo step size finding method with a parameter step   
+/// // size shrinkage parameter equal to 0.5 and an objective function decrease magnitude of 0.001.
+///  
+/// let x0 = &array![-0.5];
+/// let x_star = steepest_descent(f, gradf, &x0, &Default::default(), 1e-3, 10);
+/// assert!((-0.5 - x_star.unwrap()[0]).abs() < 1e-10);
+///
+/// let x0 = &array![0.];
+/// let x_star = steepest_descent(f, gradf, &x0, &Default::default(), 1e-3, 10);
+/// assert!((1. - x_star.unwrap()[0]).abs() < 1e-10);
+///
+/// // It also takes multivariate objective functions
+/// let f = |arr: &VecType<f32>| 100. * (arr[1] - arr[0].powi(2)).powi(2) + (1. - arr[0]).powi(2);
+/// let gradf = |arr: &VecType<f32>| {
+///     array![
+///         -400. * arr[0] * (arr[1] - arr[0].powi(2)) - 2. * (1. - arr[0]),
+///          200. * (arr[1] - arr[0].powi(2))
+///     ]
+/// };
+/// let x = array![1f32, -0.5f32];
+/// let opt = steepest_descent(f, gradf, &x, &Default::default(), 1e-3, 10000).unwrap();
+/// assert!((opt[0] - 1.).abs() <= 1e-2);
+/// assert!((opt[1] - 1.).abs() <= 1e-2);
+/// ```
 pub fn steepest_descent<X, A>(
     f: fn(&X) -> A,
     gradf: fn(&X) -> X,
@@ -158,6 +197,7 @@ where
     iterate_star
 }
 
+/// Represents the sequence of iterates computed by a steepest algorithm.
 pub struct SteepestDescentIterates<X, A> {
     f: fn(&X) -> A,
     gradf: fn(&X) -> X,
