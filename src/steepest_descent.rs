@@ -7,6 +7,7 @@ use std::{
     ops::{Add, Mul, Neg, Sub},
 };
 
+/// Alias of the output type of step size functions.
 type StepSizeFunction<X, A> =
     fn(fn(&X) -> A, fn(&X) -> X, &X, &X, &SteepestDescentParameter<A>) -> A;
 
@@ -144,8 +145,8 @@ where
 /// assert!((-2. - x_star.unwrap()[0]).abs() < 1e-10);
 ///
 ///
-/// // The default algorithm uses Armijo step size finding method with a parameter step   
-/// // size shrinkage parameter equal to 0.5 and an objective function decrease magnitude of 0.001.
+/// // The default algorithm uses Armijo step size finding method with a shrinkage step   
+/// // size parameter equal to 0.5 and an objective function decrease magnitude of 0.001.
 ///  
 /// let x0 = &array![-0.5];
 /// let x_star = steepest_descent(f, gradf, &x0, &Default::default(), 1e-3, 10);
