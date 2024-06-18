@@ -8,7 +8,7 @@ pub use ndarray::{
     prelude::{ArrayBase, Dim},
     s, OwnedRepr,
 };
-pub use scalar::bracket;
+pub use scalar::{bracket, root::brent_root};
 pub use steepest_descent::{steepest_descent, SteepestDescentIterates, SteepestDescentParameter};
 pub use traits::DefaultValue;
 

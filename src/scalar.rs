@@ -1,5 +1,5 @@
 use num_traits::{Float, One};
-
+pub mod root;
 use crate::TuutalError;
 use std::mem::swap;
 
