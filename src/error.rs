@@ -5,7 +5,7 @@ pub enum TuutalError {
     #[error("The algorithm terminated without finding a valid bracket.")]
     Bracketing,
     #[error(
-        "No valid bracket was found before the maximum number of iterations `{0}` was reached."
+        "No valid solution was found before the maximum number of iterations `{0}` was reached."
     )]
     Convergence(String),
 }
