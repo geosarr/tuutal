@@ -1,4 +1,4 @@
-//! `tuutal` is a library providing tools to optimize scalar functions and functions with multidimensional inputs.
+//! `tuutal` is a library providing tools to optimize functions with scalar or multidimensional inputs.
 //! It aims at the moment to reproduce and improve if possible the optimization submodule of Python scipy 1.13.1.
 
 pub mod error;
