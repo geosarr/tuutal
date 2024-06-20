@@ -6,7 +6,7 @@ use std::mem::swap;
 /// Finds intervals that bracket the minimum of a scalar function
 /// Adapted from https://github.com/scipy/scipy/blob/c22b657faf9e8cf19167a82b3bfe65a90a2c5afb/scipy/optimize/_optimize.py
 /// ```
-/// use tuutal::scalar::bracket;
+/// use tuutal::bracket;
 /// let f = |x: f32| 10. * x.powi(2) + 3. * x + 5.;
 /// let expected_bracket = (1.0, 0.1, -1.3562305);
 /// let output_bracket = bracket(f, 0.1, 1., 100).unwrap_or((0., 0., 0., 0., 0., 0.));
