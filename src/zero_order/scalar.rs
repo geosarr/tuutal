@@ -22,7 +22,7 @@ use std::mem::swap;
 /// [opt]: https://github.com/scipy/scipy/blob/c22b657faf9e8cf19167a82b3bfe65a90a2c5afb/scipy/optimize/_optimize.py
 ///
 /// ```
-/// use tuutal::bracket;
+/// use tuutal::{bracket, TuutalError};
 /// let f = |x: f32| 10. * x.powi(2) + 3. * x + 5.;
 /// let (xa_star, xb_star, xc_star) = (1.0, 0.1, -1.3562305);
 /// let (xa, xb, xc, fa, fb, fc) = bracket(f, 0.1, 1., 100).unwrap_or((0., 0., 0., 0., 0., 0.));
@@ -32,6 +32,18 @@ use std::mem::swap;
 /// assert!((xc_star - xc).abs() < 1e-5);
 /// assert!((xc < xb) && (xb < xa));
 /// assert!((fb <= fc) && (fb < fa));
+///
+/// let low_maxiter = 20;
+/// let convergence_error = TuutalError::Convergence(low_maxiter.to_string());
+/// let bracketing_error = TuutalError::Bracketing;
+/// assert_eq!(
+///     bracket(|x: f32| x.powi(3), 0.5, 2., low_maxiter).unwrap_err(),
+///     convergence_error
+/// );
+/// assert_eq!(
+///     bracket(|x: f32| x, 0.5, 2., 500).unwrap_err(),
+///     bracketing_error
+/// );
 /// ```
 pub fn bracket<T>(
     f: impl Fn(T) -> T,
@@ -123,7 +135,13 @@ where
     Ok((xa, xb, xc, fa, fb, fc))
 }
 
-/// Minimizes a scalar function using Brent's algorithm.
+/// Minimizes a scalar function f using Brent's algorithm.
+///
+/// The algorithm uses the [`bracket`] function to find bracket intervals, before finding a solution.
+///
+/// # Returns
+/// - Ok((x, f(x))) if it finds a solution x minimizing f at least locally.
+/// - [Err(TuutalError::SomeVariant)](../error/enum.TuutalError.html) if the function [`bracket`] fails.
 ///
 /// Adapted from [Scipy Optimize][opt]
 ///
@@ -146,124 +164,122 @@ pub fn brent_opt<T>(
 where
     T: One + Float + std::fmt::Debug + DefaultValue,
 {
-    let bracket_info = bracket(&f, xa, xb, maxiter);
-    if let Err(error) = bracket_info {
-        Err(error)
-    } else {
-        let (xa, xb, xc, _, fb, _) =
-            bracket_info.unwrap_or_else(|_| panic!("Bracket unwrap error."));
-        let mut x = xb;
-        let mut w = xb;
-        let mut v = xb;
-        let mut fw = fb;
-        let mut fv = fb;
-        let mut fx = fb;
-        let (mut a, mut b) = if xa < xc { (xa, xc) } else { (xc, xa) };
-        let zero = T::zero();
-        let mut deltax = zero;
-        let ten = T::ten();
-        let _mintol = ten.powi(-11);
-        let _cg = T::three() * ten.powi(-1) + T::eight() * ten.powi(-2) + ten.powi(-3); // 0.381
-        let one_half = T::one_half();
-        // fix of scipy rat variable initilization question.
-        let mut rat = if x >= one_half * (a + b) {
-            a - x
-        } else {
-            b - x
-        } * _cg;
-        let one = T::one();
-        let two = T::two();
-        let mut iter = 0;
-        while iter < maxiter {
-            let tol1 = tol * x.abs() + _mintol;
-            let tol2 = two * tol1;
-            let xmid = one_half * (a + b);
-            // check for convergence
-            if (x - xmid).abs() < (tol2 - one_half * (b - a)) {
-                break;
-            }
-            if deltax.abs() <= tol1 {
-                // do a golden section step
-                deltax = if x >= xmid { a - x } else { b - x };
-                rat = _cg * deltax;
+    match bracket(&f, xa, xb, maxiter) {
+        Err(error) => Err(error),
+        Ok((xa, xb, xc, _, fb, _)) => {
+            let mut x = xb;
+            let mut w = xb;
+            let mut v = xb;
+            let mut fw = fb;
+            let mut fv = fb;
+            let mut fx = fb;
+            let (mut a, mut b) = if xa < xc { (xa, xc) } else { (xc, xa) };
+            let zero = T::zero();
+            let mut deltax = zero;
+            let ten = T::ten();
+            let _mintol = ten.powi(-11);
+            let _cg = T::three() * ten.powi(-1) + T::eight() * ten.powi(-2) + ten.powi(-3); // 0.381
+            let one_half = T::one_half();
+            // fix of scipy rat variable initilization question.
+            let mut rat = if x >= one_half * (a + b) {
+                a - x
             } else {
-                // do a parabolic step
-                let tmp1 = (x - w) * (fx - fv);
-                let tmp2 = (x - v) * (fx - fw);
-                let mut p = (x - v) * tmp2 - (x - w) * tmp1;
-                let mut tmp2 = two * (tmp2 - tmp1);
-                if tmp2 > zero {
-                    p = -p;
+                b - x
+            } * _cg;
+            let one = T::one();
+            let two = T::two();
+            let mut iter = 0;
+            while iter < maxiter {
+                let tol1 = tol * x.abs() + _mintol;
+                let tol2 = two * tol1;
+                let xmid = one_half * (a + b);
+                // check for convergence
+                if (x - xmid).abs() < (tol2 - one_half * (b - a)) {
+                    break;
                 }
-                tmp2 = tmp2.abs();
-                let dx_temp = deltax;
-                deltax = rat;
-                // check parabolic fit
-                if (p > tmp2 * (a - x))
-                    && (p < tmp2 * (b - x))
-                    && (p.abs() < (one_half * tmp2 * dx_temp).abs())
-                {
-                    rat = p * one / tmp2; // if parabolic step is useful.
-                    let u = x + rat;
-                    if ((u - a) < tol2) | ((b - u) < tol2) {
-                        if xmid >= x {
-                            rat = tol1;
-                        } else {
-                            rat = -tol1;
-                        }
-                    }
-                } else {
-                    if x >= xmid {
-                        deltax = a - x; // if it's not do a golden section step
-                    } else {
-                        deltax = b - x;
-                    }
+                if deltax.abs() <= tol1 {
+                    // do a golden section step
+                    deltax = if x >= xmid { a - x } else { b - x };
                     rat = _cg * deltax;
-                }
-            }
-            let u = if rat.abs() < tol1 {
-                // update by at least tol1
-                if rat >= zero {
-                    x + tol1
                 } else {
-                    x - tol1
+                    // do a parabolic step
+                    let tmp1 = (x - w) * (fx - fv);
+                    let tmp2 = (x - v) * (fx - fw);
+                    let mut p = (x - v) * tmp2 - (x - w) * tmp1;
+                    let mut tmp2 = two * (tmp2 - tmp1);
+                    if tmp2 > zero {
+                        p = -p;
+                    }
+                    tmp2 = tmp2.abs();
+                    let dx_temp = deltax;
+                    deltax = rat;
+                    // check parabolic fit
+                    if (p > tmp2 * (a - x))
+                        && (p < tmp2 * (b - x))
+                        && (p.abs() < (one_half * tmp2 * dx_temp).abs())
+                    {
+                        rat = p * one / tmp2; // if parabolic step is useful.
+                        let u = x + rat;
+                        if ((u - a) < tol2) | ((b - u) < tol2) {
+                            if xmid >= x {
+                                rat = tol1;
+                            } else {
+                                rat = -tol1;
+                            }
+                        }
+                    } else {
+                        if x >= xmid {
+                            deltax = a - x; // if it's not do a golden section step
+                        } else {
+                            deltax = b - x;
+                        }
+                        rat = _cg * deltax;
+                    }
                 }
-            } else {
-                x + rat
-            };
+                let u = if rat.abs() < tol1 {
+                    // update by at least tol1
+                    if rat >= zero {
+                        x + tol1
+                    } else {
+                        x - tol1
+                    }
+                } else {
+                    x + rat
+                };
 
-            let fu = f(u);
-            if fu > fx {
-                // if it's bigger than current
-                if u < x {
-                    a = u;
+                let fu = f(u);
+                if fu > fx {
+                    // if it's bigger than current
+                    if u < x {
+                        a = u;
+                    } else {
+                        b = u;
+                    }
+                    if (fu <= fw) | (w == x) {
+                        v = w;
+                        w = u;
+                        fv = fw;
+                        fw = fu;
+                    } else if (fu <= fv) | (v == x) | (v == w) {
+                        v = u;
+                        fv = fu;
+                    }
                 } else {
-                    b = u;
-                }
-                if (fu <= fw) | (w == x) {
+                    if u >= x {
+                        a = x;
+                    } else {
+                        b = x;
+                    }
                     v = w;
-                    w = u;
+                    w = x;
+                    x = u;
                     fv = fw;
-                    fw = fu;
-                } else if (fu <= fv) | (v == x) | (v == w) {
-                    v = u;
-                    fv = fu;
+                    fw = fx;
+                    fx = fu;
                 }
-            } else {
-                if u >= x {
-                    a = x;
-                } else {
-                    b = x;
-                }
-                v = w;
-                w = x;
-                x = u;
-                fv = fw;
-                fw = fx;
-                fx = fu;
+                iter += 1;
             }
-            iter += 1;
+            Ok((x, fx))
         }
-        Ok((x, fx))
     }
 }

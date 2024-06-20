@@ -1,9 +1,9 @@
 use thiserror::Error;
 
 /// Handles types of errors occuring during optimization.
-#[derive(Error, Debug)]
+#[derive(Error, Debug, PartialEq)]
 pub enum TuutalError {
-    /// This error occurs in a bracket finding algorithm.
+    /// This error occurs when a bracket finding algorithm fails.
     #[error("The algorithm terminated without finding a valid bracket.")]
     Bracketing,
     /// This error occurs when an optimization algorithm did not converge.
@@ -14,7 +14,7 @@ pub enum TuutalError {
 }
 
 /// Handles types of errors occuring during a root finding algorithm.
-#[derive(Error, Debug)]
+#[derive(Error, Debug, PartialEq)]
 pub enum RootFindingError {
     /// This error occurs when a mandatory condition f(a) * f(b) < 0 is not satisfied.
     #[error("The inputs a = {a:?} and b = {b:?} do not satisfy f(a) * f(b) < 0.")]
