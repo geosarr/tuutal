@@ -1,18 +1,37 @@
 use num_traits::{Float, One};
 pub mod root;
+use crate::DefaultValue;
 use crate::TuutalError;
 use std::mem::swap;
 
-/// Finds intervals that bracket the minimum of a scalar function
-/// Adapted from https://github.com/scipy/scipy/blob/c22b657faf9e8cf19167a82b3bfe65a90a2c5afb/scipy/optimize/_optimize.py
+/// Finds intervals that bracket the minimum of a scalar function f.
+///
+/// The algorithm attempts to find three finite scalars x<sub>a</sub>, x<sub>b</sub>, and x<sub>c</sub> satisfying **(bracketing condition)**:
+/// - x<sub>b</sub> is strictly between x<sub>a</sub> and x<sub>c</sub>: (x<sub>a</sub> < x<sub>b</sub> < x<sub>c</sub>) or (x<sub>c</sub> < x<sub>b</sub> < x<sub>a</sub>)
+/// - f<sub>b</sub>=f(x<sub>b</sub>) is below f<sub>a</sub>=f(x<sub>a</sub>) and f<sub>c</sub>=f(x<sub>c</sub>): (f<sub>b</sub> < f<sub>c</sub> and f<sub>b</sub> <= f<sub>a</sub>) or (f<sub>b</sub> < f<sub>a</sub> and f<sub>b</sub> <= f<sub>c</sub>)
+///
+/// # Returns
+/// - Ok((x<sub>a</sub>, x<sub>b</sub>, x<sub>c</sub>, f<sub>a</sub>, f<sub>b</sub>, f<sub>c</sub>)) when it finds a solution triplet
+/// (x<sub>a</sub>, x<sub>b</sub>, x<sub>c</sub>) satisfying the above conditions.
+/// - [Err(TuutalError::Convergence(maxiter))](../error/enum.TuutalError.html) when the maximum number of iterations is reached without finding any solution.
+/// - [Err(TuutalError::Bracketing)](../error/enum.TuutalError.html) when the algorithm found a bracket satisfying f<sub>b</sub> <= f<sub>c</sub> and did not satisfy at least one of
+/// the above bracketing condition.
+///
+/// Adapted from [Scipy Optimize][opt]
+///
+/// [opt]: https://github.com/scipy/scipy/blob/c22b657faf9e8cf19167a82b3bfe65a90a2c5afb/scipy/optimize/_optimize.py
+///
 /// ```
 /// use tuutal::bracket;
 /// let f = |x: f32| 10. * x.powi(2) + 3. * x + 5.;
-/// let expected_bracket = (1.0, 0.1, -1.3562305);
-/// let output_bracket = bracket(f, 0.1, 1., 100).unwrap_or((0., 0., 0., 0., 0., 0.));
-/// assert!((expected_bracket.0 - output_bracket.0).abs() < 1e-5);
-/// assert!((expected_bracket.1 - output_bracket.1).abs() < 1e-5);
-/// assert!((expected_bracket.2 - output_bracket.2).abs() < 1e-5);
+/// let (xa_star, xb_star, xc_star) = (1.0, 0.1, -1.3562305);
+/// let (xa, xb, xc, fa, fb, fc) = bracket(f, 0.1, 1., 100).unwrap_or((0., 0., 0., 0., 0., 0.));
+/// // Test bracketing condition
+/// assert!((xa_star - xa).abs() < 1e-5);
+/// assert!((xb_star - xb).abs() < 1e-5);
+/// assert!((xc_star - xc).abs() < 1e-5);
+/// assert!((xc < xb) && (xb < xa));
+/// assert!((fb <= fc) && (fb < fa));
 /// ```
 pub fn bracket<T>(
     f: impl Fn(T) -> T,
@@ -21,12 +40,12 @@ pub fn bracket<T>(
     maxiter: usize,
 ) -> Result<(T, T, T, T, T, T), TuutalError>
 where
-    T: One + Float,
+    T: One + Float + DefaultValue,
 {
-    let two = T::one() + T::one();
-    let five = two + two + T::one();
+    let two = T::two();
+    let five = T::five();
     let _gold = (T::one() + five.sqrt()) / two; // golden ratio: (1.0+sqrt(5.0))/2.0
-    let ten = two * five;
+    let ten = T::ten();
     let grow_limit = ten.powi(2) + ten; // 110.
     let mut fa = f(xa);
     let mut fb = f(xb);
@@ -37,6 +56,7 @@ where
     let mut xc = xb + _gold * (xb - xa);
     let mut fc = f(xc);
     let mut iter = 0;
+    let zero = T::zero();
     while fc < fb {
         let tmp1 = (xb - xa) * (fb - fc);
         let tmp2 = (xb - xc) * (fb - fa);
@@ -53,7 +73,7 @@ where
         }
         iter += 1;
         let mut fw = f(w);
-        if (w - xc) * (xb - w) > T::zero() {
+        if (w - xc) * (xb - w) > zero {
             fw = f(w);
             if fw < fc {
                 xa = xb;
@@ -68,10 +88,10 @@ where
             }
             w = xc + _gold * (xc - xb);
             fw = f(w);
-        } else if (w - wlim) * (wlim - xc) >= T::zero() {
+        } else if (w - wlim) * (wlim - xc) >= zero {
             w = wlim;
             fw = f(w);
-        } else if (w - wlim) * (xc - w) > T::zero() {
+        } else if (w - wlim) * (xc - w) > zero {
             fw = f(w);
             if fw < fc {
                 xb = xc;
@@ -104,6 +124,11 @@ where
 }
 
 /// Minimizes a scalar function using Brent's algorithm.
+///
+/// Adapted from [Scipy Optimize][opt]
+///
+/// [opt]: https://github.com/scipy/scipy/blob/c22b657faf9e8cf19167a82b3bfe65a90a2c5afb/scipy/optimize/_optimize.py
+///
 /// ```
 /// use tuutal::brent_opt;
 /// let f = |x: f32| (x - 2.) * x * (x + 2.).powi(2);
@@ -119,7 +144,7 @@ pub fn brent_opt<T>(
     tol: T,
 ) -> Result<(T, T), TuutalError>
 where
-    T: One + Float + std::fmt::Debug,
+    T: One + Float + std::fmt::Debug + DefaultValue,
 {
     let bracket_info = bracket(&f, xa, xb, maxiter);
     if let Err(error) = bracket_info {
@@ -134,22 +159,21 @@ where
         let mut fv = fb;
         let mut fx = fb;
         let (mut a, mut b) = if xa < xc { (xa, xc) } else { (xc, xa) };
-        let mut deltax = T::zero();
-        let mut iter = 0;
-        let two = T::one() + T::one();
-        let one_half = T::one() / two;
-        let three = two + T::one();
-        let five = two + three;
-        let ten = two * five;
+        let zero = T::zero();
+        let mut deltax = zero;
+        let ten = T::ten();
         let _mintol = ten.powi(-11);
-        let _cg = three * ten.powi(-1) + (three + five) * ten.powi(-2) + ten.powi(-3); // 0.381
-
+        let _cg = T::three() * ten.powi(-1) + T::eight() * ten.powi(-2) + ten.powi(-3); // 0.381
+        let one_half = T::one_half();
         // fix of scipy rat variable initilization question.
         let mut rat = if x >= one_half * (a + b) {
             a - x
         } else {
             b - x
         } * _cg;
+        let one = T::one();
+        let two = T::two();
+        let mut iter = 0;
         while iter < maxiter {
             let tol1 = tol * x.abs() + _mintol;
             let tol2 = two * tol1;
@@ -168,7 +192,7 @@ where
                 let tmp2 = (x - v) * (fx - fw);
                 let mut p = (x - v) * tmp2 - (x - w) * tmp1;
                 let mut tmp2 = two * (tmp2 - tmp1);
-                if tmp2 > T::zero() {
+                if tmp2 > zero {
                     p = -p;
                 }
                 tmp2 = tmp2.abs();
@@ -179,7 +203,7 @@ where
                     && (p < tmp2 * (b - x))
                     && (p.abs() < (one_half * tmp2 * dx_temp).abs())
                 {
-                    rat = p * T::one() / tmp2; // if parabolic step is useful.
+                    rat = p * one / tmp2; // if parabolic step is useful.
                     let u = x + rat;
                     if ((u - a) < tol2) | ((b - u) < tol2) {
                         if xmid >= x {
@@ -199,7 +223,7 @@ where
             }
             let u = if rat.abs() < tol1 {
                 // update by at least tol1
-                if rat >= T::zero() {
+                if rat >= zero {
                     x + tol1
                 } else {
                     x - tol1

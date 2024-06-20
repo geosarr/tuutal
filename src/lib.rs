@@ -26,5 +26,8 @@ use ndarray::{
 pub use traits::DefaultValue;
 pub use zero_order::{bracket, brent_opt, brent_root};
 
+/// Two dimensional owned matrix
 pub type MatrixType<T> = ArrayBase<OwnedRepr<T>, Dim<[usize; 2]>>;
+
+/// One dimensional owned matrix or vector.
 pub type VecType<T> = ArrayBase<OwnedRepr<T>, Dim<[usize; 1]>>;

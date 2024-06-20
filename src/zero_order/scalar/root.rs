@@ -16,7 +16,9 @@ where
 }
 
 /// [Brent's root finding][br] algorithm for a scalar function.
+///
 /// [br]: https://en.wikipedia.org/wiki/Brent%27s_method
+///
 /// ```
 /// use tuutal::brent_root;
 /// assert!((brent_root(|x: f32| x.powi(2) - 4., 0., 3.).unwrap_or(0.) - 2.).abs() <= 1e-4);
