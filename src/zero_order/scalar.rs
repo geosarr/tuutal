@@ -54,11 +54,9 @@ pub fn bracket<T>(
 where
     T: One + Float + DefaultValue,
 {
-    let two = T::two();
-    let five = T::five();
-    let _gold = (T::one() + five.sqrt()) / two; // golden ratio: (1.0+sqrt(5.0))/2.0
-    let ten = T::ten();
-    let grow_limit = ten.powi(2) + ten; // 110.
+    let two = T::from_f32(2.);
+    let _gold = (T::one() + T::from_f32(5.).sqrt()) / two; // golden ratio: (1.0+sqrt(5.0))/2.0
+    let grow_limit = T::from_f32(110.);
     let mut fa = f(xa);
     let mut fb = f(xb);
     if fa < fb {
@@ -176,10 +174,10 @@ where
             let (mut a, mut b) = if xa < xc { (xa, xc) } else { (xc, xa) };
             let zero = T::zero();
             let mut deltax = zero;
-            let ten = T::ten();
+            let ten = T::from_f32(10.);
             let _mintol = ten.powi(-11);
-            let _cg = T::three() * ten.powi(-1) + T::eight() * ten.powi(-2) + ten.powi(-3); // 0.381
-            let one_half = T::one_half();
+            let _cg = T::from_f32(0.3819660); // 0.381
+            let one_half = T::from_f32(0.5);
             // fix of scipy rat variable initilization question.
             let mut rat = if x >= one_half * (a + b) {
                 a - x
@@ -187,7 +185,7 @@ where
                 b - x
             } * _cg;
             let one = T::one();
-            let two = T::two();
+            let two = T::from_f32(2.);
             let mut iter = 0;
             while iter < maxiter {
                 let tol1 = tol * x.abs() + _mintol;

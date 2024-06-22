@@ -51,10 +51,10 @@ where
     }
     let mut c = a;
     let mut mflag = true;
-    let two = T::two();
-    let three = T::three();
-    let four = T::four();
-    let delta = T::ten().powi(-5);
+    let two = T::from_f32(2.);
+    let three = T::from_f32(3.);
+    let four = T::from_f32(4.);
+    let delta = T::from_f32(10.).powi(-5);
     while (f(b).abs() > T::epsilon()) && (f(a).abs() > T::epsilon()) && (a - b).abs() > T::epsilon()
     {
         let fa = f(a);

@@ -23,7 +23,7 @@ where
     T: DefaultValue,
 {
     fn default() -> Self {
-        Self::Armijo(T::tol(-3), T::one_half())
+        Self::Armijo(T::tol(-3), T::from_f32(0.5))
     }
 }
 
@@ -90,6 +90,7 @@ where
     let mut sigma = A::one();
     let mut x_next = x.clone() + sigma_minus * d;
     let gradx_d = gradf(x).dot(d);
+    let one_half = A::from_f32(0.5);
     // The first if and else conditions guarantee having a segment [sigma_minus, sigma_plus]
     // such that sigma_minus satisfies the armijo condition and sigma_plus does not
     if f(&x_next) - f(x) <= sigma_minus * *params.gamma() * gradx_d {
@@ -97,7 +98,7 @@ where
             return sigma_minus;
         }
         // Computation of sigma_plus
-        let two = A::one() + A::one();
+        let two = A::from_f32(2.);
         sigma_plus = two;
         x_next = x.clone() + sigma_plus * d;
         while f(&x_next) - f(x) <= sigma_plus * *params.gamma() * gradx_d {
@@ -105,20 +106,19 @@ where
             x_next = x.clone() + sigma_plus * d;
         }
         // At this stage sigma_plus is the smallest 2^k that does not satisfy the Armijo rule
-        sigma_minus = sigma_plus * A::one_half(); // it satisfies the Armijo rule
+        sigma_minus = sigma_plus * one_half; // it satisfies the Armijo rule
     } else {
-        let one_half = A::one_half();
-        sigma_minus = A::one_half();
+        sigma_minus = one_half;
         x_next = x.clone() + sigma_minus * d;
         while f(&x_next) - f(x) > sigma_minus * *params.gamma() * gradx_d {
             sigma_minus = one_half * sigma_minus;
             x_next = x.clone() + sigma_minus * d;
         }
-        sigma_plus = sigma_minus * (A::one() + A::one()); // does not satisfy the Armijo rule
+        sigma_plus = sigma_minus * (A::from_f32(2.)); // does not satisfy the Armijo rule
     }
     x_next = x.clone() + sigma_minus * d;
     while gradf(&x_next).dot(d) < *params.beta() * gradx_d {
-        sigma = (sigma_minus + sigma_plus) * A::one_half();
+        sigma = (sigma_minus + sigma_plus) * one_half;
         x_next = x.clone() + sigma * d;
         if f(&x_next) - f(x) <= sigma * *params.gamma() * gradx_d {
             sigma_minus = sigma;
@@ -144,10 +144,6 @@ where
 /// let x_star = steepest_descent(f, gradf, &x0, &SteepestDescentParameter::PowellWolfe(1e-2, 0.9), 1e-3, 10);
 /// assert!((-2. - x_star.unwrap()[0]).abs() < 1e-10);
 ///
-///
-/// // The default algorithm uses Armijo step size finding method with a shrinkage step   
-/// // size parameter equal to 0.5 and an objective function decrease magnitude of 0.001.
-///  
 /// let x0 = &array![-0.5];
 /// let x_star = steepest_descent(f, gradf, &x0, &Default::default(), 1e-3, 10);
 /// assert!((-0.5 - x_star.unwrap()[0]).abs() < 1e-10);
