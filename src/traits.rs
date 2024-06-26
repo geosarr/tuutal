@@ -1,18 +1,21 @@
+use std::ops::{Mul, Sub};
+
+use crate::{MatrixType, VecType};
+
 /// Complements num_traits float-pointing number Float trait by adding
-/// easy access to the ten first positive integers (1. ..=10.).
+/// conversion from f32 and provides easy access exponential numbers.
 pub trait DefaultValue: num_traits::Float {
-    /// Tolerance value like 10<sup>n</sup> where n < 0 in general.
-    fn tol(n: i32) -> Self;
+    /// Returns b<sup>n</sup>.
+    fn exp_base(b: usize, n: i32) -> Self;
     /// Converts from f32.
     fn from_f32(f: f32) -> Self;
 }
-
 macro_rules! impl_default_value(
   ( $( $t:ident ),* )=> {
       $(
           impl DefaultValue for $t {
-            fn tol(n: i32) -> $t {
-              (10 as $t).powi(n)
+            fn exp_base(b: usize, n: i32) -> $t {
+              (b as $t).powi(n)
             }
             fn from_f32(f: f32) -> $t{
               f as $t
@@ -21,5 +24,26 @@ macro_rules! impl_default_value(
       )*
   }
 );
-
 impl_default_value!(f32, f64);
+
+/// Implements scalar properties and matrices vs scalar operations.
+pub trait Scalar<X>
+where
+    for<'a> Self: DefaultValue
+        + Sub<Self, Output = Self>
+        + Mul<Self, Output = Self>
+        + Mul<X, Output = X>
+        + Mul<&'a X, Output = X>
+        + PartialOrd
+        + Copy,
+{
+}
+macro_rules! impl_scalar(
+  ( $( $t:ident ),* )=> {
+      $(
+        impl Scalar<VecType<$t>> for $t {}
+        impl Scalar<MatrixType<$t>> for $t {}
+      )*
+  }
+);
+impl_scalar!(f32, f64);

@@ -19,7 +19,7 @@ use std::mem::swap;
 ///
 /// Adapted from [Scipy Optimize][opt]
 ///
-/// [opt]: https://github.com/scipy/scipy/blob/c22b657faf9e8cf19167a82b3bfe65a90a2c5afb/scipy/optimize/_optimize.py
+/// [opt]: https://github.com/scipy/scipy/blob/v1.13.1/scipy/optimize/_optimize.py
 ///
 /// ```
 /// use tuutal::{bracket, TuutalError};
@@ -84,7 +84,7 @@ where
         iter += 1;
         let mut fw = f(w);
         if (w - xc) * (xb - w) > zero {
-            fw = f(w);
+            // fw = f(w);
             if fw < fc {
                 xa = xb;
                 xb = w;
@@ -96,20 +96,20 @@ where
                 fc = fw;
                 break;
             }
-            w = xc + _gold * (xc - xb);
-            fw = f(w);
+            // w = xc + _gold * (xc - xb);
+            // fw = f(w);
         } else if (w - wlim) * (wlim - xc) >= zero {
-            w = wlim;
-            fw = f(w);
+            // w = wlim;
+            // fw = f(w);
         } else if (w - wlim) * (xc - w) > zero {
-            fw = f(w);
+            // fw = f(w);
             if fw < fc {
                 xb = xc;
                 xc = w;
-                w = xc + _gold * (xc - xb);
+                // w = xc + _gold * (xc - xb);
                 fb = fc;
                 fc = fw;
-                fw = f(w);
+                // fw = f(w);
             }
         } else {
             w = xc + _gold * (xc - xb);
@@ -143,7 +143,7 @@ where
 ///
 /// Adapted from [Scipy Optimize][opt]
 ///
-/// [opt]: https://github.com/scipy/scipy/blob/c22b657faf9e8cf19167a82b3bfe65a90a2c5afb/scipy/optimize/_optimize.py
+/// [opt]: https://github.com/scipy/scipy/blob/v1.13.1/scipy/optimize/_optimize.py
 ///
 /// ```
 /// use tuutal::brent_opt;
@@ -176,7 +176,7 @@ where
             let mut deltax = zero;
             let ten = T::from_f32(10.);
             let _mintol = ten.powi(-11);
-            let _cg = T::from_f32(0.3819660); // 0.381
+            let _cg = T::from_f32(0.381_966);
             let one_half = T::from_f32(0.5);
             // fix of scipy rat variable initilization question.
             let mut rat = if x >= one_half * (a + b) {

@@ -67,18 +67,6 @@ where
                     b: b.to_string(),
                 });
             }
-            if fa == fc {
-                return Err(RootFindingError::Interpolation {
-                    a: a.to_string(),
-                    b: c.to_string(),
-                });
-            }
-            if fb == fc {
-                return Err(RootFindingError::Interpolation {
-                    a: b.to_string(),
-                    b: c.to_string(),
-                });
-            }
             // inverse quadratic interpolation
             inv_quad_interpol(a, fa, fb, fc)
                 + inv_quad_interpol(b, fb, fa, fc)
