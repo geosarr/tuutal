@@ -329,6 +329,10 @@ where
     pub fn nb_iter(&self) -> usize {
         self.iter
     }
+    /// Current iterate.
+    pub fn x(&self) -> &X {
+        &self.x
+    }
 }
 
 impl<X, F, G, A> std::iter::Iterator for SteepestDescentIterates<X, F, G, A>

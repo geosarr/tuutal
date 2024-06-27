@@ -22,7 +22,7 @@ mod traits;
 
 pub use error::{RootFindingError, TuutalError};
 pub use first_order::{steepest_descent, SteepestDescentIterates, SteepestDescentParameter};
-pub use ndarray::{array, s};
+pub use ndarray::{array, s, Array};
 use ndarray::{
     prelude::{ArrayBase, Dim},
     OwnedRepr,
