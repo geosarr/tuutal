@@ -218,7 +218,7 @@ where
 ///     1e-3,
 ///     10,
 /// );
-/// assert!((-2. - x_star.unwrap()[0]).abs() < 1e-10);
+/// assert!((-2. - x_star[0]).abs() < 1e-10);
 ///
 /// let x_star = steepest_descent(
 ///     &f,
@@ -228,15 +228,15 @@ where
 ///     1e-3,
 ///     10,
 /// );
-/// assert!((-2. - x_star.unwrap()[0]).abs() < 1e-10);
+/// assert!((-2. - x_star[0]).abs() < 1e-10);
 ///
 /// let x0 = &array![-0.5];
 /// let x_star = steepest_descent(f, gradf, &x0, &Default::default(), 1e-3, 10);
-/// assert!((-0.5 - x_star.unwrap()[0]).abs() < 1e-10);
+/// assert!((-0.5 - x_star[0]).abs() < 1e-10);
 ///
 /// let x0 = &array![0.];
 /// let x_star = steepest_descent(f, gradf, &x0, &Default::default(), 1e-3, 10);
-/// assert!((1. - x_star.unwrap()[0]).abs() < 1e-10);
+/// assert!((1. - x_star[0]).abs() < 1e-10);
 ///
 /// // It also takes multivariate objective functions
 /// let f =
@@ -248,7 +248,7 @@ where
 ///     ]
 /// };
 /// let x = array![1f32, -0.5f32];
-/// let opt = steepest_descent(f, gradf, &x, &Default::default(), 1e-3, 10000).unwrap();
+/// let opt = steepest_descent(f, gradf, &x, &Default::default(), 1e-3, 10000);
 /// assert!((opt[0] - 1.).abs() <= 1e-2);
 /// assert!((opt[1] - 1.).abs() <= 1e-2);
 /// ```
@@ -258,8 +258,8 @@ pub fn steepest_descent<X, F, G, A>(
     x0: &X,
     params: &SteepestDescentParameter<A>,
     eps: A,
-    nb_iter: usize,
-) -> Option<X>
+    maxiter: usize,
+) -> X
 where
     A: Scalar<X>,
     X: Dot<X, Output = A> + Neg<Output = X> + Add<X, Output = X> + Clone,
@@ -267,9 +267,12 @@ where
     G: Fn(&X) -> X,
 {
     let mut iterates = SteepestDescentIterates::new(f, gradf, x0.clone(), *params, eps);
-    let mut iterate_star = iterates.next();
-    while iterates.nb_iter() < nb_iter {
-        iterate_star = iterates.next();
+    let mut iterate_star = x0.clone();
+    while let Some(x) = iterates.next() {
+        iterate_star = x;
+        if iterates.nb_iter() > maxiter {
+            break;
+        }
     }
     iterate_star
 }
@@ -287,6 +290,7 @@ where
     eps: A,
     iter: usize,
     rule: StepSizeFunction<X, F, G, A>,
+    sigma: A,
 }
 
 impl<X, F, G, A> SteepestDescentIterates<X, F, G, A>
@@ -311,6 +315,7 @@ where
             iter: 0,
             eps,
             rule,
+            sigma: A::zero(),
         }
     }
     /// Reference to the objective function
@@ -333,6 +338,10 @@ where
     pub fn x(&self) -> &X {
         &self.x
     }
+    /// Current step size.
+    pub fn sigma(&self) -> &A {
+        &self.sigma
+    }
 }
 
 impl<X, F, G, A> std::iter::Iterator for SteepestDescentIterates<X, F, G, A>
@@ -347,16 +356,16 @@ where
         let neg_grad = -self.grad_obj()(&self.x);
         if neg_grad.dot(&neg_grad) <= (self.eps * self.eps) {
             self.iter += 1;
-            Some(self.x.clone())
+            None
         } else {
-            let sigma = self.step_size_rule()(
+            self.sigma = self.step_size_rule()(
                 self.obj(),
                 self.grad_obj(),
                 &self.x,
                 &neg_grad,
                 &self.params,
             );
-            self.x = self.x.clone() + sigma * neg_grad;
+            self.x = self.x.clone() + self.sigma * neg_grad;
             self.iter += 1;
             Some(self.x.clone())
         }
