@@ -3,7 +3,7 @@ use std::ops::{Mul, Sub};
 use crate::{MatrixType, VecType};
 
 /// Complements num_traits float-pointing number Float trait by adding
-/// conversion from f32 and provides easy access exponential numbers.
+/// conversion from f32 and provides easy access to exponential numbers.
 pub trait DefaultValue: num_traits::Float {
     /// Returns b<sup>n</sup>.
     fn exp_base(b: usize, n: i32) -> Self;
