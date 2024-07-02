@@ -1,4 +1,4 @@
-![](assets/logo.jpg)
+![](assets/logo_20.jpg)
 
 # tuutal
 
