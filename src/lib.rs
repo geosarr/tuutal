@@ -37,13 +37,12 @@ pub type MatrixType<T> = ArrayBase<OwnedRepr<T>, Dim<[usize; 2]>>;
 /// One dimensional owned matrix or vector.
 pub type VecType<T> = ArrayBase<OwnedRepr<T>, Dim<[usize; 1]>>;
 
-/// Generic function to launch an optimization routine without caring about the intermediate computed iterates.
-pub fn optimize<X: Clone, I: Iterable<X>>(
+/// Generic function to launch an optimization routine when intermediate iterates are not needed.
+pub(crate) fn optimize<X: Clone, I: Iterable<X>>(
     mut iterable: I,
-    x0: X,
     maxiter: usize,
 ) -> Result<X, TuutalError<X>> {
-    let mut iterate_star = x0.clone();
+    let mut iterate_star = iterable.iterate().clone();
     while let Some(x) = iterable.next() {
         iterate_star = x;
         if iterable.nb_iter() > maxiter {

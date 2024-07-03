@@ -51,4 +51,5 @@ impl_scalar!(f32, f64);
 /// Implements an iterator counting the number of iterations don so far.
 pub trait Iterable<X>: std::iter::Iterator<Item = X> {
     fn nb_iter(&self) -> usize;
+    fn iterate(&self) -> &X;
 }

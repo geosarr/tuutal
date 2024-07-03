@@ -267,7 +267,7 @@ where
     G: Fn(&X) -> X,
 {
     let iterates = SteepestDescentIterates::new(f, gradf, x0.clone(), *params, eps);
-    return optimize(iterates, x0.clone(), maxiter);
+    return optimize(iterates, maxiter);
 }
 
 /// Represents the sequence of iterates computed by a steepest descent algorithm.
@@ -374,5 +374,8 @@ where
 {
     fn nb_iter(&self) -> usize {
         self.nb_iter()
+    }
+    fn iterate(&self) -> &X {
+        self.x()
     }
 }
