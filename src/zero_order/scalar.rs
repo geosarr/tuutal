@@ -4,6 +4,9 @@ use crate::DefaultValue;
 use crate::TuutalError;
 use std::mem::swap;
 
+type BrentOptResult<T> = Result<(T, T), TuutalError<(T, T, T, T, T, T)>>;
+type BracketResult<T> = Result<(T, T, T, T, T, T), TuutalError<(T, T, T, T, T, T)>>;
+
 /// Finds intervals that bracket a minimum of a scalar function f.
 ///
 /// The algorithm attempts to find three finite scalars x<sub>a</sub>, x<sub>b</sub>, and x<sub>c</sub> satisfying **(bracketing condition)**:
@@ -49,12 +52,7 @@ use std::mem::swap;
 ///     f32::NEG_INFINITY
 /// );
 /// ```
-pub fn bracket<T>(
-    f: impl Fn(T) -> T,
-    mut xa: T,
-    mut xb: T,
-    maxiter: usize,
-) -> Result<(T, T, T, T, T, T), TuutalError<(T, T, T, T, T, T)>>
+pub fn bracket<T>(f: impl Fn(T) -> T, mut xa: T, mut xb: T, maxiter: usize) -> BracketResult<T>
 where
     T: One + Float + DefaultValue,
 {
@@ -161,13 +159,7 @@ where
 /// assert!((x - 1.280776).abs() < 1e-4);
 /// assert!((fx + 9.914950).abs() < 1e-4);
 /// ```
-pub fn brent_opt<T>(
-    f: impl Fn(T) -> T,
-    xa: T,
-    xb: T,
-    maxiter: usize,
-    tol: T,
-) -> Result<(T, T), TuutalError<(T, T, T, T, T, T)>>
+pub fn brent_opt<T>(f: impl Fn(T) -> T, xa: T, xb: T, maxiter: usize, tol: T) -> BrentOptResult<T>
 where
     T: One + Float + std::fmt::Debug + DefaultValue,
 {
