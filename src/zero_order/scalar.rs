@@ -4,7 +4,7 @@ use crate::DefaultValue;
 use crate::TuutalError;
 use std::mem::swap;
 
-/// Finds intervals that bracket the minimum of a scalar function f.
+/// Finds intervals that bracket a minimum of a scalar function f.
 ///
 /// The algorithm attempts to find three finite scalars x<sub>a</sub>, x<sub>b</sub>, and x<sub>c</sub> satisfying **(bracketing condition)**:
 /// - x<sub>b</sub> is strictly between x<sub>a</sub> and x<sub>c</sub>: (x<sub>a</sub> < x<sub>b</sub> < x<sub>c</sub>) or (x<sub>c</sub> < x<sub>b</sub> < x<sub>a</sub>)
@@ -13,7 +13,7 @@ use std::mem::swap;
 /// # Returns
 /// - Ok((x<sub>a</sub>, x<sub>b</sub>, x<sub>c</sub>, f<sub>a</sub>, f<sub>b</sub>, f<sub>c</sub>)) when it finds a solution triplet
 /// (x<sub>a</sub>, x<sub>b</sub>, x<sub>c</sub>) satisfying the above conditions.
-/// - [Err(TuutalError::Convergence(maxiter))](../error/enum.TuutalError.html) when the maximum number of iterations is reached without finding any solution.
+/// - [Err(TuutalError::Convergence)](../error/enum.TuutalError.html) when the maximum number of iterations is reached without finding any solution.
 /// - [Err(TuutalError::Bracketing)](../error/enum.TuutalError.html) when the algorithm found a bracket satisfying f<sub>b</sub> <= f<sub>c</sub> and did not satisfy at least one of
 /// the above bracketing condition.
 ///
@@ -34,15 +34,19 @@ use std::mem::swap;
 /// assert!((fb <= fc) && (fb < fa));
 ///
 /// let low_maxiter = 20;
-/// let convergence_error = TuutalError::Convergence(low_maxiter.to_string());
-/// let bracketing_error = TuutalError::Bracketing;
 /// assert_eq!(
-///     bracket(|x: f32| x.powi(3), 0.5, 2., low_maxiter).unwrap_err(),
-///     convergence_error
+///     match bracket(|x: f32| x, 0.5, 2., low_maxiter).unwrap_err() {
+///         TuutalError::Convergence { iterate: _, maxiter: maxiter } => maxiter,
+///         _ => "-1".to_string(),
+///     },
+///     low_maxiter.to_string()
 /// );
 /// assert_eq!(
-///     bracket(|x: f32| x, 0.5, 2., 500).unwrap_err(),
-///     bracketing_error
+///     match bracket(|x: f32| x, 0.5, 2., 500).unwrap_err() {
+///         TuutalError::Bracketing { iterate: iterate } => iterate.1,
+///         _ => 0.
+///     },
+///     f32::NEG_INFINITY
 /// );
 /// ```
 pub fn bracket<T>(
@@ -50,7 +54,7 @@ pub fn bracket<T>(
     mut xa: T,
     mut xb: T,
     maxiter: usize,
-) -> Result<(T, T, T, T, T, T), TuutalError>
+) -> Result<(T, T, T, T, T, T), TuutalError<(T, T, T, T, T, T)>>
 where
     T: One + Float + DefaultValue,
 {
@@ -79,7 +83,10 @@ where
         let mut w = xb - ((xb - xc) * tmp2 - (xb - xa) * tmp1) / denom;
         let wlim = xb + grow_limit * (xc - xb);
         if iter > maxiter {
-            return Err(TuutalError::Convergence(maxiter.to_string()));
+            return Err(TuutalError::Convergence {
+                iterate: (xa, xb, xc, fa, fb, fc),
+                maxiter: maxiter.to_string(),
+            });
         }
         iter += 1;
         let mut fw = f(w);
@@ -128,7 +135,9 @@ where
         (xa.abs() < T::infinity()) && (xb.abs() < T::infinity()) && (xc.abs() < T::infinity());
 
     if !(cond1 && cond2 && cond3) {
-        return Err(TuutalError::Bracketing);
+        return Err(TuutalError::Bracketing {
+            iterate: (xa, xb, xc, fa, fb, fc),
+        });
     }
     Ok((xa, xb, xc, fa, fb, fc))
 }
@@ -158,7 +167,7 @@ pub fn brent_opt<T>(
     xb: T,
     maxiter: usize,
     tol: T,
-) -> Result<(T, T), TuutalError>
+) -> Result<(T, T), TuutalError<(T, T, T, T, T, T)>>
 where
     T: One + Float + std::fmt::Debug + DefaultValue,
 {
@@ -178,7 +187,7 @@ where
             let _mintol = ten.powi(-11);
             let _cg = T::from_f32(0.381_966);
             let one_half = T::from_f32(0.5);
-            // fix of scipy rat variable initilization question.
+            // fix of scipy rat variable initialization question.
             let mut rat = if x >= one_half * (a + b) {
                 a - x
             } else {

@@ -28,7 +28,7 @@ use ndarray::{
     OwnedRepr,
 };
 
-pub use traits::{DefaultValue, Scalar};
+pub use traits::{DefaultValue, Iterable, Scalar};
 pub use zero_order::{bracket, brent_opt, brent_root};
 
 /// Two dimensional owned matrix
@@ -36,3 +36,22 @@ pub type MatrixType<T> = ArrayBase<OwnedRepr<T>, Dim<[usize; 2]>>;
 
 /// One dimensional owned matrix or vector.
 pub type VecType<T> = ArrayBase<OwnedRepr<T>, Dim<[usize; 1]>>;
+
+/// Generic function to launch an optimization routine without caring about the intermediate computed iterates.
+pub fn optimize<X: Clone, I: Iterable<X>>(
+    mut iterable: I,
+    x0: X,
+    maxiter: usize,
+) -> Result<X, TuutalError<X>> {
+    let mut iterate_star = x0.clone();
+    while let Some(x) = iterable.next() {
+        iterate_star = x;
+        if iterable.nb_iter() > maxiter {
+            return Err(TuutalError::Convergence {
+                iterate: iterate_star,
+                maxiter: maxiter.to_string(),
+            });
+        }
+    }
+    Ok(iterate_star)
+}
