@@ -1,4 +1,4 @@
-![](assets/logo.jpg)
+![](assets/logo_tuutal.png)
 
 # tuutal
 

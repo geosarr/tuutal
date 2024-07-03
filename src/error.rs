@@ -2,15 +2,19 @@ use thiserror::Error;
 
 /// Handles types of errors occuring during optimization.
 #[derive(Error, Debug, PartialEq)]
-pub enum TuutalError {
+pub enum TuutalError<X> {
     /// This error occurs when a bracket finding algorithm fails.
+    ///
+    /// It holds also the current iterate of the algorithm when this error is thrown.
     #[error("The algorithm terminated without finding a valid bracket.")]
-    Bracketing,
+    Bracketing { iterate: X },
     /// This error occurs when an optimization algorithm did not converge.
+    ///
+    /// It holds also the current iterate of the algorithm when this error is thrown.
     #[error(
-        "No valid solution was found before the maximum number of iterations `{0}` was reached."
+        "No valid solution was found before the maximum number of iterations `{maxiter:?}` was reached."
     )]
-    Convergence(String),
+    Convergence { iterate: X, maxiter: String },
 }
 
 /// Handles types of errors occuring during a root finding algorithm.

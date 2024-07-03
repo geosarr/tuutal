@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod unit_test;
-use crate::{traits::Scalar, DefaultValue};
+use crate::{optimize, traits::Scalar, DefaultValue, Iterable, TuutalError};
 use ndarray::linalg::Dot;
 use std::{
     fmt::Debug,
@@ -217,7 +217,7 @@ where
 ///     &SteepestDescentParameter::new_armijo(1e-2, 0.25),
 ///     1e-3,
 ///     10,
-/// );
+/// ).unwrap();
 /// assert!((-2. - x_star[0]).abs() < 1e-10);
 ///
 /// let x_star = steepest_descent(
@@ -227,15 +227,15 @@ where
 ///     &SteepestDescentParameter::new_powell_wolfe(1e-2, 0.9),
 ///     1e-3,
 ///     10,
-/// );
+/// ).unwrap();
 /// assert!((-2. - x_star[0]).abs() < 1e-10);
 ///
 /// let x0 = &array![-0.5];
-/// let x_star = steepest_descent(f, gradf, &x0, &Default::default(), 1e-3, 10);
+/// let x_star = steepest_descent(f, gradf, &x0, &Default::default(), 1e-3, 10).unwrap();
 /// assert!((-0.5 - x_star[0]).abs() < 1e-10);
 ///
 /// let x0 = &array![0.];
-/// let x_star = steepest_descent(f, gradf, &x0, &Default::default(), 1e-3, 10);
+/// let x_star = steepest_descent(f, gradf, &x0, &Default::default(), 1e-3, 10).unwrap();
 /// assert!((1. - x_star[0]).abs() < 1e-10);
 ///
 /// // It also takes multivariate objective functions
@@ -248,7 +248,7 @@ where
 ///     ]
 /// };
 /// let x = array![1f32, -0.5f32];
-/// let opt = steepest_descent(f, gradf, &x, &Default::default(), 1e-3, 10000);
+/// let opt = steepest_descent(f, gradf, &x, &Default::default(), 1e-3, 10000).unwrap();
 /// assert!((opt[0] - 1.).abs() <= 1e-2);
 /// assert!((opt[1] - 1.).abs() <= 1e-2);
 /// ```
@@ -259,22 +259,15 @@ pub fn steepest_descent<X, F, G, A>(
     params: &SteepestDescentParameter<A>,
     eps: A,
     maxiter: usize,
-) -> X
+) -> Result<X, TuutalError<X>>
 where
     A: Scalar<X>,
     X: Dot<X, Output = A> + Neg<Output = X> + Add<X, Output = X> + Clone,
     F: Fn(&X) -> A,
     G: Fn(&X) -> X,
 {
-    let mut iterates = SteepestDescentIterates::new(f, gradf, x0.clone(), *params, eps);
-    let mut iterate_star = x0.clone();
-    while let Some(x) = iterates.next() {
-        iterate_star = x;
-        if iterates.nb_iter() > maxiter {
-            break;
-        }
-    }
-    iterate_star
+    let iterates = SteepestDescentIterates::new(f, gradf, x0.clone(), *params, eps);
+    optimize(iterates, maxiter)
 }
 
 /// Represents the sequence of iterates computed by a steepest descent algorithm.
@@ -369,5 +362,20 @@ where
             self.iter += 1;
             Some(self.x.clone())
         }
+    }
+}
+
+impl<X, F, G, A> Iterable<X> for SteepestDescentIterates<X, F, G, A>
+where
+    A: Scalar<X>,
+    X: Dot<X, Output = A> + Neg<Output = X> + Add<X, Output = X> + Clone,
+    F: Fn(&X) -> A,
+    G: Fn(&X) -> X,
+{
+    fn nb_iter(&self) -> usize {
+        self.nb_iter()
+    }
+    fn iterate(&self) -> &X {
+        self.x()
     }
 }

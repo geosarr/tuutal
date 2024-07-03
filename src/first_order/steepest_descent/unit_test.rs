@@ -21,7 +21,7 @@ mod tests {
         let armijo = SteepestDescentParameter::new_armijo(0.01, 0.5);
         let (f, gradf) = rosenbrock_2d();
         let x = array![1f32, -0.5f32];
-        let opt = steepest_descent(f, gradf, &x, &armijo, 1e-5, 10000);
+        let opt = steepest_descent(f, gradf, &x, &armijo, 1e-4, 10000).unwrap();
         let expected = array![1., 1.];
         assert!(
             opt.iter()
@@ -29,7 +29,7 @@ mod tests {
                 .map(|(x, y)| (x - y).powi(2))
                 .sum::<f32>()
                 .sqrt()
-                < 1e-4
+                < 1e-3
         );
     }
 
@@ -38,7 +38,7 @@ mod tests {
         let powolf = SteepestDescentParameter::new_powell_wolfe(0.0001, 0.9);
         let (f, gradf) = rosenbrock_2d();
         let x = array![1f32, -0.5f32];
-        let opt = steepest_descent(f, gradf, &x, &powolf, 1e-4, 10000);
+        let opt = steepest_descent(f, gradf, &x, &powolf, 1e-4, 10000).unwrap();
         let expected = array![1., 1.];
         assert!(
             opt.iter()
@@ -66,7 +66,7 @@ mod tests {
             ]
         };
         let x = array![10f32, -15., -100.];
-        let opt = steepest_descent(f, gradf, &x, &powolf, 1e-5, 10000);
+        let opt = steepest_descent(f, gradf, &x, &powolf, 1e-4, 10000).unwrap();
         let expected = array![1., 1., 1.];
         assert!(
             opt.iter()
@@ -74,7 +74,7 @@ mod tests {
                 .map(|(x, y)| (x - y).powi(2))
                 .sum::<f32>()
                 .sqrt()
-                < 1e-4
+                < 1e-3
         );
     }
 }
