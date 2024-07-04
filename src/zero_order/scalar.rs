@@ -15,10 +15,10 @@ type BracketResult<T> = Result<(T, T, T, T, T, T), TuutalError<(T, T, T, T, T, T
 ///
 /// # Returns
 /// - Ok((x<sub>a</sub>, x<sub>b</sub>, x<sub>c</sub>, f<sub>a</sub>, f<sub>b</sub>, f<sub>c</sub>)) when it finds a solution triplet
-/// (x<sub>a</sub>, x<sub>b</sub>, x<sub>c</sub>) satisfying the above conditions.
+///   (x<sub>a</sub>, x<sub>b</sub>, x<sub>c</sub>) satisfying the above conditions.
 /// - [Err(TuutalError::Convergence)](../error/enum.TuutalError.html) when the maximum number of iterations is reached without finding any solution.
 /// - [Err(TuutalError::Bracketing)](../error/enum.TuutalError.html) when the algorithm found a bracket satisfying f<sub>b</sub> <= f<sub>c</sub> and did not satisfy at least one of
-/// the above bracketing condition.
+///   the above bracketing condition.
 ///
 /// Adapted from [Scipy Optimize][opt]
 ///

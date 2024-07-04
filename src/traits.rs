@@ -48,8 +48,10 @@ macro_rules! impl_scalar(
 );
 impl_scalar!(f32, f64);
 
-/// Implements an iterator counting the number of iterations don so far.
+/// Implements an iterator counting the number of iterations done so far.
 pub trait Iterable<X>: std::iter::Iterator<Item = X> {
+    /// Number of iterations done so far.
     fn nb_iter(&self) -> usize;
+    /// Current iterate.
     fn iterate(&self) -> &X;
 }

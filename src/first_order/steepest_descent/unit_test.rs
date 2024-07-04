@@ -16,6 +16,18 @@ mod tests {
         return (f, gradf);
     }
 
+    fn l2_diff<T>(a: &VecType<T>, b: &VecType<T>) -> T
+    where
+        for<'a> &'a T: std::ops::Sub<Output = T>,
+        T: num_traits::Float + std::ops::Mul<Output = T> + std::iter::Sum,
+    {
+        a.iter()
+            .zip(b)
+            .map(|(x, y)| (x - y) * (x - y))
+            .sum::<T>()
+            .sqrt()
+    }
+
     #[test]
     fn test_armijo() {
         let armijo = SteepestDescentParameter::new_armijo(0.01, 0.5);
@@ -23,14 +35,7 @@ mod tests {
         let x = array![1f32, -0.5f32];
         let opt = steepest_descent(f, gradf, &x, &armijo, 1e-4, 10000).unwrap();
         let expected = array![1., 1.];
-        assert!(
-            opt.iter()
-                .zip(&expected)
-                .map(|(x, y)| (x - y).powi(2))
-                .sum::<f32>()
-                .sqrt()
-                < 1e-3
-        );
+        assert!(l2_diff(&opt, &expected) < 1e-3);
     }
 
     #[test]
@@ -40,14 +45,27 @@ mod tests {
         let x = array![1f32, -0.5f32];
         let opt = steepest_descent(f, gradf, &x, &powolf, 1e-4, 10000).unwrap();
         let expected = array![1., 1.];
-        assert!(
-            opt.iter()
-                .zip(&expected)
-                .map(|(x, y)| (x - y).powi(2))
-                .sum::<f32>()
-                .sqrt()
-                < 1e-3
-        );
+        assert!(l2_diff(&opt, &expected) < 1e-3);
+    }
+
+    #[test]
+    fn test_adagrad() {
+        let adagrad = SteepestDescentParameter::AdaGrad {
+            gamma: 0.01,
+            beta: 0.5,
+        };
+        let (f, gradf) = rosenbrock_2d();
+        let x = array![1f32, -0.5f32];
+        let opt = steepest_descent(f, gradf, &x, &adagrad, 1e-3, 10000).unwrap_err();
+        let expected = array![1., 1.];
+        // Slow convergence due to gradient normalization.
+        match opt {
+            TuutalError::Convergence {
+                iterate,
+                maxiter: _,
+            } => assert!(l2_diff(&iterate, &expected) < 2e-3),
+            _ => panic!("Wrong error variant."),
+        }
     }
 
     #[test]
@@ -68,13 +86,6 @@ mod tests {
         let x = array![10f32, -15., -100.];
         let opt = steepest_descent(f, gradf, &x, &powolf, 1e-4, 10000).unwrap();
         let expected = array![1., 1., 1.];
-        assert!(
-            opt.iter()
-                .zip(&expected)
-                .map(|(x, y)| (x - y).powi(2))
-                .sum::<f32>()
-                .sqrt()
-                < 1e-3
-        );
+        assert!(l2_diff(&opt, &expected) < 1e-3);
     }
 }

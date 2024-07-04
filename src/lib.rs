@@ -42,15 +42,13 @@ pub(crate) fn optimize<X: Clone, I: Iterable<X>>(
     mut iterable: I,
     maxiter: usize,
 ) -> Result<X, TuutalError<X>> {
-    let mut iterate_star = iterable.iterate().clone();
     while let Some(x) = iterable.next() {
-        iterate_star = x;
         if iterable.nb_iter() > maxiter {
             return Err(TuutalError::Convergence {
-                iterate: iterate_star,
+                iterate: x,
                 maxiter: maxiter.to_string(),
             });
         }
     }
-    Ok(iterate_star)
+    Ok(iterable.iterate().clone())
 }
