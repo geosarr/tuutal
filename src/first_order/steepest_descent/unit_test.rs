@@ -1,8 +1,7 @@
 #[cfg(test)]
 mod tests {
     use super::super::*;
-    use crate::VecType;
-    use ndarray::array;
+    use crate::{array, VecType};
 
     fn rosenbrock_2d() -> (fn(&VecType<f32>) -> f32, fn(&VecType<f32>) -> VecType<f32>) {
         let f =
