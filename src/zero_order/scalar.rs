@@ -4,8 +4,8 @@ use crate::DefaultValue;
 use crate::TuutalError;
 use std::mem::swap;
 
-type BrentOptResult<T> = Result<(T, T), TuutalError<(T, T, T, T, T, T)>>;
-type BracketResult<T> = Result<(T, T, T, T, T, T), TuutalError<(T, T, T, T, T, T)>>;
+type BrentOptResult<T> = Result<(T, T, usize), TuutalError<(T, T, T, T, T, T, usize)>>;
+type BracketResult<T> = Result<(T, T, T, T, T, T, usize), TuutalError<(T, T, T, T, T, T, usize)>>;
 
 /// Finds intervals that bracket a minimum of a scalar function f.
 ///
@@ -14,8 +14,8 @@ type BracketResult<T> = Result<(T, T, T, T, T, T), TuutalError<(T, T, T, T, T, T
 /// - f<sub>b</sub>=f(x<sub>b</sub>) is below f<sub>a</sub>=f(x<sub>a</sub>) and f<sub>c</sub>=f(x<sub>c</sub>): (f<sub>b</sub> < f<sub>c</sub> and f<sub>b</sub> <= f<sub>a</sub>) or (f<sub>b</sub> < f<sub>a</sub> and f<sub>b</sub> <= f<sub>c</sub>)
 ///
 /// # Returns
-/// - Ok((x<sub>a</sub>, x<sub>b</sub>, x<sub>c</sub>, f<sub>a</sub>, f<sub>b</sub>, f<sub>c</sub>)) when it finds a solution triplet
-///   (x<sub>a</sub>, x<sub>b</sub>, x<sub>c</sub>) satisfying the above conditions.
+/// - Ok((x<sub>a</sub>, x<sub>b</sub>, x<sub>c</sub>, f<sub>a</sub>, f<sub>b</sub>, f<sub>c</sub>, fcalls)) when it finds a solution triplet
+///   (x<sub>a</sub>, x<sub>b</sub>, x<sub>c</sub>) satisfying the above conditions, fcalls is the number of function f evaluation during the algorithm.
 /// - [Err(TuutalError::Convergence)](../error/enum.TuutalError.html) when the maximum number of iterations is reached without finding any solution.
 /// - [Err(TuutalError::Bracketing)](../error/enum.TuutalError.html) when the algorithm found a bracket satisfying f<sub>b</sub> <= f<sub>c</sub> and did not satisfy at least one of
 ///   the above bracketing condition.
@@ -28,7 +28,9 @@ type BracketResult<T> = Result<(T, T, T, T, T, T), TuutalError<(T, T, T, T, T, T
 /// use tuutal::{bracket, TuutalError};
 /// let f = |x: f32| 10. * x.powi(2) + 3. * x + 5.;
 /// let (xa_star, xb_star, xc_star) = (1.0, 0.1, -1.3562305);
-/// let (xa, xb, xc, fa, fb, fc) = bracket(f, 0.1, 1., 100).unwrap_or((0., 0., 0., 0., 0., 0.));
+/// let (xa, xb, xc, fa, fb, fc, _fcalls) =
+///     bracket(f, 0.1, 1., 100).unwrap_or((0., 0., 0., 0., 0., 0., 0));
+///
 /// // Test bracketing condition
 /// assert!((xa_star - xa).abs() < 1e-5);
 /// assert!((xb_star - xb).abs() < 1e-5);
@@ -39,15 +41,18 @@ type BracketResult<T> = Result<(T, T, T, T, T, T), TuutalError<(T, T, T, T, T, T
 /// let low_maxiter = 20;
 /// assert_eq!(
 ///     match bracket(|x: f32| x, 0.5, 2., low_maxiter).unwrap_err() {
-///         TuutalError::Convergence { iterate: _, maxiter: maxiter } => maxiter,
+///         TuutalError::Convergence {
+///             iterate: _,
+///             maxiter,
+///         } => maxiter,
 ///         _ => "-1".to_string(),
 ///     },
 ///     low_maxiter.to_string()
 /// );
 /// assert_eq!(
 ///     match bracket(|x: f32| x, 0.5, 2., 500).unwrap_err() {
-///         TuutalError::Bracketing { iterate: iterate } => iterate.1,
-///         _ => 0.
+///         TuutalError::Bracketing { iterate } => iterate.1,
+///         _ => 0.,
 ///     },
 ///     f32::NEG_INFINITY
 /// );
@@ -61,12 +66,14 @@ where
     let grow_limit = T::from_f32(110.);
     let mut fa = f(xa);
     let mut fb = f(xb);
+    let mut fcalls: usize = 2;
     if fa < fb {
         swap(&mut xa, &mut xb);
         swap(&mut fa, &mut fb);
     }
     let mut xc = xb + _gold * (xb - xa);
     let mut fc = f(xc);
+    fcalls += 1;
     let mut iter = 0;
     let zero = T::zero();
     while fc < fb {
@@ -82,12 +89,13 @@ where
         let wlim = xb + grow_limit * (xc - xb);
         if iter > maxiter {
             return Err(TuutalError::Convergence {
-                iterate: (xa, xb, xc, fa, fb, fc),
+                iterate: (xa, xb, xc, fa, fb, fc, fcalls),
                 maxiter: maxiter.to_string(),
             });
         }
         iter += 1;
         let mut fw = f(w);
+        fcalls += 1;
         if (w - xc) * (xb - w) > zero {
             // fw = f(w);
             if fw < fc {
@@ -119,6 +127,7 @@ where
         } else {
             w = xc + _gold * (xc - xb);
             fw = f(w);
+            fcalls += 1;
             xa = xb;
             xb = xc;
             xc = w;
@@ -134,10 +143,10 @@ where
 
     if !(cond1 && cond2 && cond3) {
         return Err(TuutalError::Bracketing {
-            iterate: (xa, xb, xc, fa, fb, fc),
+            iterate: (xa, xb, xc, fa, fb, fc, fcalls),
         });
     }
-    Ok((xa, xb, xc, fa, fb, fc))
+    Ok((xa, xb, xc, fa, fb, fc, fcalls))
 }
 
 /// Minimizes a scalar function f using Brent's algorithm.
@@ -145,8 +154,11 @@ where
 /// The algorithm uses the [`bracket`] function to find bracket intervals, before finding a solution.
 ///
 /// # Returns
-/// - Ok((x, f(x))) if it finds a solution x minimizing f at least locally.
-/// - [Err(TuutalError::SomeVariant)](../error/enum.TuutalError.html) if the function [`bracket`] fails.
+/// - Ok((x, f(x), fcalls)) if it finds a solution x minimizing f at least locally, f(x) is the output of f at x
+///   and fcalls is the number of function f evaluations during the algorithm.
+/// - [Err(TuutalError::SomeVariant)](../error/enum.TuutalError.html):
+///     - if the function [`bracket`] fails.
+///     - if convergence is not reached after success of [`bracket`].
 ///
 /// Adapted from [Scipy Optimize][opt]
 ///
@@ -155,9 +167,10 @@ where
 /// ```
 /// use tuutal::brent_opt;
 /// let f = |x: f32| (x - 2.) * x * (x + 2.).powi(2);
-/// let (x, fx) = brent_opt(f, 0., 1., 1000, 1.48e-8).unwrap_or((0.0, 0.0));
+/// let (x, fx, fcalls) = brent_opt(f, 0., 1., 1000, 1.48e-8).unwrap_or((0.0, 0.0, 0));
 /// assert!((x - 1.280776).abs() < 1e-4);
-/// assert!((fx + 9.914950).abs() < 1e-4);
+/// assert!((fx + 9.914950).abs() < 1e-10);
+/// assert_eq!(fcalls, 25);
 /// ```
 pub fn brent_opt<T>(f: impl Fn(T) -> T, xa: T, xb: T, maxiter: usize, tol: T) -> BrentOptResult<T>
 where
@@ -165,7 +178,7 @@ where
 {
     match bracket(&f, xa, xb, maxiter) {
         Err(error) => Err(error),
-        Ok((xa, xb, xc, _, fb, _)) => {
+        Ok((xa, xb, xc, _, fb, _, mut fcalls)) => {
             let mut x = xb;
             let mut w = xb;
             let mut v = xb;
@@ -175,8 +188,9 @@ where
             let (mut a, mut b) = if xa < xc { (xa, xc) } else { (xc, xa) };
             let zero = T::zero();
             let mut deltax = zero;
-            let ten = T::from_f32(10.);
-            let _mintol = ten.powi(-11);
+            // small number that protects against trying to achieve fractional accuracy for a minimum that happens to be exactly zero
+            // see for more details Press, W., S.A. Teukolsky, W.T. Vetterling, and B.P. Flannery. Numerical Recipes in C. Cambridge University Press
+            let _mintol = T::epsilon();
             let _cg = T::from_f32(0.381_966);
             let one_half = T::from_f32(0.5);
             // fix of scipy rat variable initialization question.
@@ -247,6 +261,7 @@ where
                 };
 
                 let fu = f(u);
+                fcalls += 1;
                 if fu > fx {
                     // if it's bigger than current
                     if u < x {
@@ -278,7 +293,14 @@ where
                 }
                 iter += 1;
             }
-            Ok((x, fx))
+            if iter < maxiter {
+                Ok((x, fx, fcalls))
+            } else {
+                Err(TuutalError::Convergence {
+                    iterate: (x, a, b, fx, f(a), f(b), fcalls + 2),
+                    maxiter: maxiter.to_string(),
+                })
+            }
         }
     }
 }
