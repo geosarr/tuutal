@@ -7,18 +7,26 @@ use std::mem::swap;
 type BrentOptResult<T> = Result<(T, T, usize), TuutalError<(T, T, T, T, T, T, usize)>>;
 type BracketResult<T> = Result<(T, T, T, T, T, T, usize), TuutalError<(T, T, T, T, T, T, usize)>>;
 
-/// Finds intervals that bracket a minimum of a scalar function f.
+/// Finds intervals that bracket a minimum of a scalar function f, by searching in the downhill direction from initial points.
 ///
-/// The algorithm attempts to find three finite scalars x<sub>a</sub>, x<sub>b</sub>, and x<sub>c</sub> satisfying **(bracketing condition)**:
-/// - x<sub>b</sub> is strictly between x<sub>a</sub> and x<sub>c</sub>: (x<sub>a</sub> < x<sub>b</sub> < x<sub>c</sub>) or (x<sub>c</sub> < x<sub>b</sub> < x<sub>a</sub>)
-/// - f<sub>b</sub>=f(x<sub>b</sub>) is below f<sub>a</sub>=f(x<sub>a</sub>) and f<sub>c</sub>=f(x<sub>c</sub>): (f<sub>b</sub> < f<sub>c</sub> and f<sub>b</sub> <= f<sub>a</sub>) or (f<sub>b</sub> < f<sub>a</sub> and f<sub>b</sub> <= f<sub>c</sub>)
+/// # Parameters
+/// - **f**: Function with scalar input and scalar output.
+/// - **x<sub>a</sub>**, **x<sub>b</sub>**: Initital points.
+/// - **grow_limit**: Grow limit.
+/// - **maxiter**: Maximum number of iterations.
 ///
 /// # Returns
 /// - Ok((x<sub>a</sub>, x<sub>b</sub>, x<sub>c</sub>, f<sub>a</sub>, f<sub>b</sub>, f<sub>c</sub>, fcalls)) when it finds a solution triplet
-///   (x<sub>a</sub>, x<sub>b</sub>, x<sub>c</sub>) satisfying the above conditions, fcalls is the number of function f evaluation during the algorithm.
+///   (x<sub>a</sub>, x<sub>b</sub>, x<sub>c</sub>) satisfying the bracketing condition below, fcalls is the number of function f evaluation during the algorithm.
 /// - [Err(TuutalError::Convergence)](../error/enum.TuutalError.html) when the maximum number of iterations is reached without finding any solution.
 /// - [Err(TuutalError::Bracketing)](../error/enum.TuutalError.html) when the algorithm found a bracket satisfying f<sub>b</sub> <= f<sub>c</sub> and did not satisfy at least one of
-///   the above bracketing condition.
+///   the bracketing condition.
+///
+/// # Notes
+/// The algorithm attempts to find three finite scalars x<sub>a</sub>, x<sub>b</sub>, and x<sub>c</sub> satisfying **(bracketing condition)**:
+/// - x<sub>b</sub> is strictly between x<sub>a</sub> and x<sub>c</sub>: (x<sub>a</sub> < x<sub>b</sub> < x<sub>c</sub>) or (x<sub>c</sub> < x<sub>b</sub> < x<sub>a</sub>)
+/// - f<sub>b</sub>=f(x<sub>b</sub>) is below f<sub>a</sub>=f(x<sub>a</sub>) and f<sub>c</sub>=f(x<sub>c</sub>): (f<sub>b</sub> < f<sub>c</sub> and f<sub>b</sub> <= f<sub>a</sub>)
+///   or (f<sub>b</sub> < f<sub>a</sub> and f<sub>b</sub> <= f<sub>c</sub>)
 ///
 /// Adapted from [Scipy Optimize][opt]
 ///
@@ -29,7 +37,7 @@ type BracketResult<T> = Result<(T, T, T, T, T, T, usize), TuutalError<(T, T, T, 
 /// let f = |x: f32| 10. * x.powi(2) + 3. * x + 5.;
 /// let (xa_star, xb_star, xc_star) = (1.0, 0.1, -1.3562305);
 /// let (xa, xb, xc, fa, fb, fc, _fcalls) =
-///     bracket(f, 0.1, 1., 100).unwrap_or((0., 0., 0., 0., 0., 0., 0));
+///     bracket(f, 0.1, 1., 110., 100).unwrap_or((0., 0., 0., 0., 0., 0., 0));
 ///
 /// // Test bracketing condition
 /// assert!((xa_star - xa).abs() < 1e-5);
@@ -40,7 +48,7 @@ type BracketResult<T> = Result<(T, T, T, T, T, T, usize), TuutalError<(T, T, T, 
 ///
 /// let low_maxiter = 20;
 /// assert_eq!(
-///     match bracket(|x: f32| x, 0.5, 2., low_maxiter).unwrap_err() {
+///     match bracket(|x: f32| x, 0.5, 2., 110., low_maxiter).unwrap_err() {
 ///         TuutalError::Convergence {
 ///             iterate: _,
 ///             maxiter,
@@ -50,20 +58,20 @@ type BracketResult<T> = Result<(T, T, T, T, T, T, usize), TuutalError<(T, T, T, 
 ///     low_maxiter.to_string()
 /// );
 /// assert_eq!(
-///     match bracket(|x: f32| x, 0.5, 2., 500).unwrap_err() {
+///     match bracket(|x: f32| x, 0.5, 2., 110., 500).unwrap_err() {
 ///         TuutalError::Bracketing { iterate } => iterate.1,
 ///         _ => 0.,
 ///     },
 ///     f32::NEG_INFINITY
 /// );
 /// ```
-pub fn bracket<T>(f: impl Fn(T) -> T, mut xa: T, mut xb: T, maxiter: usize) -> BracketResult<T>
+pub fn bracket<T, F>(f: F, mut xa: T, mut xb: T, grow_limit: T, maxiter: usize) -> BracketResult<T>
 where
     T: One + Float + DefaultValue,
+    F: Fn(T) -> T,
 {
     let two = T::from_f32(2.);
     let _gold = (T::one() + T::from_f32(5.).sqrt()) / two; // golden ratio: (1.0+sqrt(5.0))/2.0
-    let grow_limit = T::from_f32(110.);
     let mut fa = f(xa);
     let mut fb = f(xb);
     let mut fcalls: usize = 2;
@@ -94,10 +102,9 @@ where
             });
         }
         iter += 1;
-        let mut fw = f(w);
-        fcalls += 1;
-        if (w - xc) * (xb - w) > zero {
-            // fw = f(w);
+        let fw = if (w - xc) * (xb - w) > zero {
+            let mut fw = f(w);
+            fcalls += 1;
             if fw < fc {
                 xa = xb;
                 xb = w;
@@ -109,32 +116,40 @@ where
                 fc = fw;
                 break;
             }
-            // w = xc + _gold * (xc - xb);
-            // fw = f(w);
-        } else if (w - wlim) * (wlim - xc) >= zero {
-            // w = wlim;
-            // fw = f(w);
-        } else if (w - wlim) * (xc - w) > zero {
-            // fw = f(w);
-            if fw < fc {
-                xb = xc;
-                xc = w;
-                // w = xc + _gold * (xc - xb);
-                fb = fc;
-                fc = fw;
-                // fw = f(w);
-            }
-        } else {
             w = xc + _gold * (xc - xb);
             fw = f(w);
             fcalls += 1;
-            xa = xb;
-            xb = xc;
-            xc = w;
-            fa = fb;
-            fb = fc;
-            fc = fw;
-        }
+            fw
+        } else if (w - wlim) * (wlim - xc) >= zero {
+            w = wlim;
+            let fw = f(w);
+            fcalls += 1;
+            fw
+        } else if (w - wlim) * (xc - w) > zero {
+            let mut fw = f(w);
+            fcalls += 1;
+            if fw < fc {
+                xb = xc;
+                xc = w;
+                w = xc + _gold * (xc - xb);
+                fb = fc;
+                fc = fw;
+                fw = f(w);
+                fcalls += 1;
+            }
+            fw
+        } else {
+            w = xc + _gold * (xc - xb);
+            let fw = f(w);
+            fcalls += 1;
+            fw
+        };
+        xa = xb;
+        xb = xc;
+        xc = w;
+        fa = fb;
+        fb = fc;
+        fc = fw;
     }
     let cond1 = ((fb < fc) && (fb <= fa)) | ((fb < fa) && (fb <= fc));
     let cond2 = ((xa < xb) && (xb < xc)) | ((xc < xb) && (xb < xa));
@@ -172,11 +187,12 @@ where
 /// assert!((fx + 9.914950).abs() < 1e-10);
 /// assert_eq!(fcalls, 25);
 /// ```
-pub fn brent_opt<T>(f: impl Fn(T) -> T, xa: T, xb: T, maxiter: usize, tol: T) -> BrentOptResult<T>
+pub fn brent_opt<T, F>(f: F, xa: T, xb: T, maxiter: usize, tol: T) -> BrentOptResult<T>
 where
     T: One + Float + std::fmt::Debug + DefaultValue,
+    F: Fn(T) -> T,
 {
-    match bracket(&f, xa, xb, maxiter) {
+    match bracket(&f, xa, xb, T::from_f32(110.), maxiter) {
         Err(error) => Err(error),
         Ok((xa, xb, xc, _, fb, _, mut fcalls)) => {
             let mut x = xb;
