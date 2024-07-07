@@ -15,6 +15,16 @@ pub enum TuutalError<X> {
         "No valid solution was found before the maximum number of iterations `{maxiter:?}` was reached."
     )]
     Convergence { iterate: X, maxiter: String },
+    /// This error occurs when at least one lower bound is greater than an upper bound.
+    ///
+    /// It holds the bounds values.
+    #[error("At least one lower bound is greater than an upper bound")]
+    BoundOrder { lower: X, upper: X },
+    /// This error occurs when a simplex is not consistent with the variables dimension
+    ///
+    /// Its holds the simplex size and a explaining message.
+    #[error("Simplex with the wrong size.")]
+    Simplex { size: (usize, usize), msg: String },
 }
 
 /// Handles types of errors occuring during a root finding algorithm.

@@ -189,7 +189,7 @@ where
 /// ```
 pub fn brent_opt<T, F>(f: F, xa: T, xb: T, maxiter: usize, tol: T) -> BrentOptResult<T>
 where
-    T: One + Float + std::fmt::Debug + DefaultValue,
+    T: DefaultValue,
     F: Fn(T) -> T,
 {
     match bracket(&f, xa, xb, T::from_f32(110.), maxiter) {
