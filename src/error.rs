@@ -25,6 +25,11 @@ pub enum TuutalError<X> {
     /// Its holds the simplex size and a explaining message.
     #[error("Simplex with the wrong size.")]
     Simplex { size: (usize, usize), msg: String },
+    /// This error occurs when a vector of size 0 is wrongly used during an algorithm.
+    ///
+    /// It hols the empy vector.
+    #[error("Empty vector.")]
+    EmptyDimension { x: X },
 }
 
 /// Handles types of errors occuring during a root finding algorithm.
