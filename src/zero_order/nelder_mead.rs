@@ -126,7 +126,7 @@ where
         if lower_bound.iter().zip(&x0).any(|(l, x)| l > x)
             | x0.iter().zip(&upper_bound).any(|(x, u)| x > u)
         {
-            println!("Initial guess is not within the specified bounds");
+            println!("\nInitial guess is not within the specified bounds");
         }
         Ok(x0
             .iter()
@@ -171,16 +171,10 @@ where
 }
 pub struct NelderMeadIterates<'a, F, A> {
     f: F,
-    // callback: Option<bool>,
-    // maxiter: usize,
     maxfev: usize,
-    // disp: bool,
-    // return_all: bool,
     simplex: MatrixType<A>,
     xatol: A,
     fatol: A,
-    // adaptive: bool,
-    // bounds: Option<B>,
     sim_params: HashMap<&'a str, A>,
 }
 
@@ -222,8 +216,6 @@ impl<'a, F, A> NelderMeadIterates<'a, F, A> {
             simplex,
             xatol,
             fatol,
-            // adaptive,
-            // bounds,
             sim_params,
         })
     }

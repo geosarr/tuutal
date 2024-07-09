@@ -67,4 +67,39 @@ mod test {
                 < 1e-12
         );
     }
+    #[test]
+    fn test_clamp() {
+        let tuple_bound: (f32, f32) = (-1., 1.);
+        let x0 = Array::from(vec![-3.5, 1., 0., 2.]);
+        assert_eq!(
+            clamp(x0.clone(), Some(tuple_bound)).unwrap(),
+            Array::from(vec![-1., 1., 0., 1.])
+        );
+
+        assert_eq!(
+            clamp::<f32, (f32, f32)>(x0.clone(), None).unwrap(),
+            x0.clone()
+        );
+
+        let wrong_order_bound: (f32, f32) = (1., 0.);
+        let lower = Array::from_iter([1., 1., 1., 1.]);
+        let upper = Array::from_iter([0., 0., 0., 0.]);
+        assert_eq!(
+            clamp(x0.clone(), Some(wrong_order_bound)).unwrap_err(),
+            TuutalError::BoundOrder {
+                lower: lower,
+                upper: upper
+            }
+        );
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_wrong_size_bound() {
+        // At the moment Bounds of type Vec<(T, T)> must have same length than the dimension
+        // of x0, should maybe throw an error instead of panicking.
+        let x0 = Array::from_iter([1., 2.]);
+        let vec_bounds = vec![(-1., 1.)];
+        let _ = clamp(x0.clone(), Some(vec_bounds));
+    }
 }
