@@ -4,7 +4,7 @@ use crate::{MatrixType, VecType};
 
 /// Complements num_traits float-pointing number Float trait by adding
 /// conversion from f32 and provides easy access to exponential numbers.
-pub trait DefaultValue: num_traits::Float {
+pub trait Number: num_traits::Float {
     /// Returns b<sup>n</sup>.
     fn exp_base(b: usize, n: i32) -> Self;
     /// Converts from f32.
@@ -13,7 +13,7 @@ pub trait DefaultValue: num_traits::Float {
 macro_rules! impl_default_value(
   ( $( $t:ident ),* )=> {
       $(
-          impl DefaultValue for $t {
+          impl Number for $t {
             fn exp_base(b: usize, n: i32) -> $t {
               (b as $t).powi(n)
             }
@@ -29,7 +29,7 @@ impl_default_value!(f32, f64);
 /// Implements scalar properties and matrices vs scalar operations.
 pub trait Scalar<X>
 where
-    for<'a> Self: DefaultValue
+    for<'a> Self: Number
         + Sub<Self, Output = Self>
         + Mul<Self, Output = Self>
         + Mul<X, Output = X>

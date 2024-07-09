@@ -28,7 +28,7 @@ use ndarray::{
     OwnedRepr,
 };
 
-pub use traits::{DefaultValue, Iterable, Scalar};
+pub use traits::{Iterable, Number, Scalar};
 pub use zero_order::{bracket, brent_opt, brent_root};
 
 /// Two dimensional owned matrix

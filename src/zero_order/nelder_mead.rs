@@ -3,7 +3,7 @@ use std::collections::HashMap;
 mod unit_test;
 use ndarray::s;
 
-use crate::{Array, DefaultValue, MatrixType, Scalar, TuutalError, VecType};
+use crate::{Array, MatrixType, Number, Scalar, TuutalError, VecType};
 
 pub trait Bounds<T> {
     fn lower(&self, dim: usize) -> VecType<T>;
@@ -74,7 +74,7 @@ fn initial_simplex<A>(
     init_sim: Option<MatrixType<A>>,
 ) -> Result<MatrixType<A>, TuutalError<VecType<A>>>
 where
-    A: DefaultValue,
+    A: Number,
 {
     let dim = x0.len();
     if let Some(simplex) = init_sim {
@@ -110,7 +110,7 @@ where
 
 fn clamp<A, B>(x0: VecType<A>, bounds: Option<B>) -> Result<VecType<A>, TuutalError<VecType<A>>>
 where
-    A: DefaultValue,
+    A: Number,
     B: Bounds<A>,
 {
     let dim = x0.len();
@@ -144,7 +144,7 @@ fn simplex_parameters<'a, A>(
     adaptive: bool,
 ) -> Result<(VecType<A>, HashMap<&'a str, A>), TuutalError<VecType<A>>>
 where
-    A: DefaultValue,
+    A: Number,
 {
     let dim = A::from_f32(x0.len() as f32);
     let (rho, chi, psi, sigma) = if adaptive && (dim > A::zero()) {
@@ -196,7 +196,7 @@ impl<'a, F, A> NelderMeadIterates<'a, F, A> {
         bounds: Option<B>,
     ) -> Result<Self, TuutalError<VecType<A>>>
     where
-        A: DefaultValue,
+        A: Number,
         B: Bounds<A>,
     {
         let (x0, sim_params) = match simplex_parameters(x0, adaptive) {

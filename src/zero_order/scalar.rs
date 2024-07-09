@@ -1,6 +1,6 @@
 use num_traits::{Float, One};
 pub mod root;
-use crate::DefaultValue;
+use crate::Number;
 use crate::TuutalError;
 use std::mem::swap;
 
@@ -67,7 +67,7 @@ type BracketResult<T> = Result<(T, T, T, T, T, T, usize), TuutalError<(T, T, T, 
 /// ```
 pub fn bracket<T, F>(f: F, mut xa: T, mut xb: T, grow_limit: T, maxiter: usize) -> BracketResult<T>
 where
-    T: One + Float + DefaultValue,
+    T: One + Float + Number,
     F: Fn(T) -> T,
 {
     let two = T::from_f32(2.);
@@ -189,7 +189,7 @@ where
 /// ```
 pub fn brent_opt<T, F>(f: F, xa: T, xb: T, maxiter: usize, tol: T) -> BrentOptResult<T>
 where
-    T: DefaultValue,
+    T: Number,
     F: Fn(T) -> T,
 {
     match bracket(&f, xa, xb, T::from_f32(110.), maxiter) {

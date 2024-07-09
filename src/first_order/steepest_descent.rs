@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod unit_test;
-use crate::{optimize, DefaultValue, Iterable, Scalar, TuutalError};
+use crate::{optimize, Iterable, Number, Scalar, TuutalError};
 use ndarray::linalg::Dot;
 use std::{
     fmt::Debug,
@@ -37,7 +37,7 @@ pub enum SteepestDescentParameter<T> {
 
 impl<T> Default for SteepestDescentParameter<T>
 where
-    T: DefaultValue,
+    T: Number,
 {
     fn default() -> Self {
         Self::Armijo {
@@ -49,7 +49,7 @@ where
 
 impl<T> SteepestDescentParameter<T>
 where
-    T: DefaultValue,
+    T: Number,
 {
     /// Constructs an Armijo rule parameter.
     ///
