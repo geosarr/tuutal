@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests {
     use super::super::*;
-    use crate::{array, VecType};
+    use crate::{array, l2_diff, VecType};
 
     fn rosenbrock_2d() -> (fn(&VecType<f32>) -> f32, fn(&VecType<f32>) -> VecType<f32>) {
         let f =
@@ -13,18 +13,6 @@ mod tests {
             ]
         };
         return (f, gradf);
-    }
-
-    fn l2_diff<T>(a: &VecType<T>, b: &VecType<T>) -> T
-    where
-        for<'a> &'a T: std::ops::Sub<Output = T>,
-        T: num_traits::Float + std::ops::Mul<Output = T> + std::iter::Sum,
-    {
-        a.iter()
-            .zip(b)
-            .map(|(x, y)| (x - y) * (x - y))
-            .sum::<T>()
-            .sqrt()
     }
 
     #[test]

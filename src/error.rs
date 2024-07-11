@@ -30,6 +30,11 @@ pub enum TuutalError<X> {
     /// It hols the empy vector.
     #[error("Empty vector.")]
     EmptyDimension { x: X },
+    /// This error occurs when the maximum number of function calls was or will be reached.
+    ///
+    /// It holds the maximum number of function evaluation.
+    #[error("Maximum function evaluation number is `{num:?}`")]
+    MaxFunCall { num: usize },
 }
 
 /// Handles types of errors occuring during a root finding algorithm.

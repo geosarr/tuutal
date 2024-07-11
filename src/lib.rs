@@ -19,6 +19,7 @@ pub mod zero_order;
 pub mod first_order;
 
 mod traits;
+mod utils;
 
 pub use error::{RootFindingError, TuutalError};
 pub use first_order::{steepest_descent, SteepestDescentIterates, SteepestDescentParameter};
@@ -27,6 +28,9 @@ use ndarray::{
     prelude::{ArrayBase, Dim},
     OwnedRepr,
 };
+
+#[allow(unused)]
+pub(crate) use utils::l2_diff;
 
 pub use traits::{Iterable, Number, Scalar};
 pub use zero_order::{bracket, brent_opt, brent_root};

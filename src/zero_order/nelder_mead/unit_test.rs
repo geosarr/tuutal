@@ -1,7 +1,8 @@
 #[cfg(test)]
 mod test {
+
     use super::super::*;
-    use crate::{array, VecType};
+    use crate::{array, l2_diff, VecType};
     #[test]
     fn test_simplex() {
         let x0: VecType<f32> = array![];
@@ -31,7 +32,7 @@ mod test {
         let x0 = array![-1., 0., 1.];
         let wrong_size_simplex = Array::from_shape_vec((2, 3), vec![1.; 6]).unwrap();
         assert_eq!(
-            initial_simplex(x0.clone(), Some(wrong_size_simplex)).unwrap_err(),
+            initial_simplex_with_no_bounds(x0.clone(), Some(wrong_size_simplex)).unwrap_err(),
             TuutalError::Simplex {
                 size: (2, 3),
                 msg: "initial_simplex should be an array of shape (N+1, N)".to_string()
@@ -39,7 +40,7 @@ mod test {
         );
         let wrong_size_simplex = Array::from_shape_vec((3, 2), vec![1.; 6]).unwrap();
         assert_eq!(
-            initial_simplex(x0.clone(), Some(wrong_size_simplex)).unwrap_err(),
+            initial_simplex_with_no_bounds(x0.clone(), Some(wrong_size_simplex)).unwrap_err(),
             TuutalError::Simplex {
                 size: (3, 2),
                 msg: "Size of initial_simplex is not consistent with x0".to_string()
@@ -47,11 +48,13 @@ mod test {
         );
         let right_size_simplex = Array::from_shape_vec((4, 3), vec![1.; 12]).unwrap();
         assert_eq!(
-            initial_simplex(x0.clone(), Some(right_size_simplex.clone())).unwrap(),
+            initial_simplex_with_no_bounds(x0.clone(), Some(right_size_simplex.clone()))
+                .unwrap()
+                .simplex,
             right_size_simplex
         );
         // Simplex default builder
-        let built_simplex = initial_simplex(x0.clone(), None).unwrap();
+        let built_frontier = initial_simplex_with_no_bounds(x0.clone(), None).unwrap();
         let expected_simplex = array![
             [-1., 0., 1.],
             [-1.05, 0., 1.],
@@ -59,7 +62,8 @@ mod test {
             [-1., 0., 1.05],
         ];
         assert!(
-            built_simplex
+            built_frontier
+                .simplex
                 .into_iter()
                 .zip(&expected_simplex)
                 .map(|(a, b)| (a - b) * (a - b))
@@ -72,12 +76,18 @@ mod test {
         let tuple_bound: (f32, f32) = (-1., 1.);
         let x0 = Array::from(vec![-3.5, 1., 0., 2.]);
         assert_eq!(
-            clamp(x0.clone(), Some(tuple_bound)).unwrap(),
+            clamp(x0.clone(), Some(tuple_bound), None)
+                .unwrap()
+                .simplex
+                .slice(s![0, ..]),
             Array::from(vec![-1., 1., 0., 1.])
         );
 
         assert_eq!(
-            clamp::<f32, (f32, f32)>(x0.clone(), None).unwrap(),
+            clamp::<f32, (f32, f32)>(x0.clone(), None, None)
+                .unwrap()
+                .simplex
+                .slice(s![0, ..]),
             x0.clone()
         );
 
@@ -85,7 +95,7 @@ mod test {
         let lower = Array::from_iter([1., 1., 1., 1.]);
         let upper = Array::from_iter([0., 0., 0., 0.]);
         assert_eq!(
-            clamp(x0.clone(), Some(wrong_order_bound)).unwrap_err(),
+            clamp(x0.clone(), Some(wrong_order_bound), None).unwrap_err(),
             TuutalError::BoundOrder {
                 lower: lower,
                 upper: upper
@@ -100,6 +110,18 @@ mod test {
         // of x0, should maybe throw an error instead of panicking.
         let x0 = Array::from_iter([1., 2.]);
         let vec_bounds = vec![(-1., 1.)];
-        let _ = clamp(x0.clone(), Some(vec_bounds));
+        let _ = clamp(x0.clone(), Some(vec_bounds), None);
+    }
+
+    #[test]
+    fn test_simplex_reflection_interior() {
+        let simplex = array![[0., 1.], [-1., 2.], [2., -5.]];
+        let lower = array![-1., -1.];
+        let upper = array![1., 1.];
+        let expected = array![[0., 1.], [-1., 0.], [0., -1.]];
+        let computed = reflect_then_clamp_simplex(simplex, &lower, &upper);
+        for k in 0..3 {
+            assert!(l2_diff(&computed.row(k).to_owned(), &expected.row(k).to_owned()) < 1e-6);
+        }
     }
 }
