@@ -13,19 +13,13 @@ mod test {
 
         let x0: VecType<f32> = array![-10., 36.];
         assert_eq!(
-            (
-                x0.clone(),
-                HashMap::from([("rho", 1.), ("chi", 2.), ("psi", 0.5), ("sigma", 0.5)])
-            ),
+            (x0.clone(), 1., 2., 0.5, 0.5),
             simplex_parameters(x0, true).unwrap()
         );
 
         let x0: VecType<f32> = array![-1., 1.];
         assert_eq!(
-            (
-                x0.clone(),
-                HashMap::from([("rho", 1.), ("chi", 2.), ("psi", 0.5), ("sigma", 0.5)])
-            ),
+            (x0.clone(), 1., 2., 0.5, 0.5),
             simplex_parameters(x0, false).unwrap()
         );
 
@@ -115,13 +109,14 @@ mod test {
 
     #[test]
     fn test_simplex_reflection_interior() {
-        let simplex = array![[0., 1.], [-1., 2.], [2., -5.]];
+        let mut simplex = array![[0., 1.], [-1., 2.], [2., -5.]];
         let lower = array![-1., -1.];
         let upper = array![1., 1.];
         let expected = array![[0., 1.], [-1., 0.], [0., -1.]];
-        let computed = reflect_then_clamp_simplex(simplex, &lower, &upper);
+        let func = |x| reflect_then_clamp_vec(x, &lower, &upper);
+        matrix_row_map(&mut simplex, func, 0);
         for k in 0..3 {
-            assert!(l2_diff(&computed.row(k).to_owned(), &expected.row(k).to_owned()) < 1e-6);
+            assert!(l2_diff(&simplex.row(k).to_owned(), &expected.row(k).to_owned()) < 1e-6);
         }
     }
 }
