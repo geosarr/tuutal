@@ -4,63 +4,68 @@ mod unit_test;
 use ndarray::{s, Axis};
 use num_traits::FromPrimitive;
 
-use crate::{Array, MatrixType, Number, TuutalError, VecType};
+use crate::{
+    array, optimize, Array, Bound, Bounds, Iterable, MatrixType, Number, TuutalError, VecType,
+};
 
-type SimplexParameterResult<'a, A> = Result<(VecType<A>, A, A, A, A), TuutalError<VecType<A>>>;
-pub trait Bound<T> {
-    fn lower(&self, dim: usize) -> VecType<T>;
-    fn upper(&self, dim: usize) -> VecType<T>;
-}
+type SimplexParameterResult<A> = Result<(A, A, A, A), TuutalError<VecType<A>>>;
 
-impl<T> Bound<T> for (T, T)
+/// The Nelder-Mead minimization algorithm.
+/// It requires an initial guess x<sub>0</sub>.
+/// ```
+/// use tuutal::{array, nelder_mead, VecType};
+/// // Example from python scipy.optimize.minimize_scalar
+/// let f = |x: &VecType<f32>| (x[0] - 2.) * x[0] * (x[0] + 2.).powi(2);
+/// let x0 = &array![-1.];
+/// let x_star =
+///     nelder_mead::<_, (f32, f32), _>(f, &x0, None, 100, None, 1e-5, 1e-5, true, None)
+///     .unwrap();
+/// assert!((-2. - x_star[0]).abs() <= 2e-4);
+///
+/// let f =
+///     |arr: &VecType<f32>| 100. * (arr[1] - arr[0].powi(2)).powi(2) + (1. - arr[0]).powi(2);
+/// let x0 = array![1., -0.5];
+/// let x_star =
+///     nelder_mead::<_, (f32, f32), _>(f, &x0, None, 100, None, 1e-5, 1e-5, true, None)
+///     .unwrap();
+/// assert!((1. - x_star[0]).abs() <= 1e-3);
+/// assert!((1. - x_star[1]).abs() <= 2e-3);
+/// ```
+pub fn nelder_mead<A, B, F>(
+    f: F,
+    x0: &VecType<A>,
+    maxfev: Option<usize>,
+    maxiter: usize,
+    simplex: Option<MatrixType<A>>,
+    xatol: A,
+    fatol: A,
+    adaptive: bool,
+    bounds: Option<B>,
+) -> Result<VecType<A>, TuutalError<VecType<A>>>
 where
-    T: Copy,
+    for<'b> A: Number
+        + Debug
+        + FromPrimitive
+        + Mul<&'b VecType<A>, Output = VecType<A>>
+        + Mul<VecType<A>, Output = VecType<A>>,
+    B: Bound<A>,
+    F: Fn(&VecType<A>) -> A,
 {
-    fn lower(&self, dim: usize) -> VecType<T> {
-        Array::from(vec![self.0; dim])
-    }
-    fn upper(&self, dim: usize) -> VecType<T> {
-        Array::from(vec![self.1; dim])
-    }
-}
-
-impl<T> Bound<T> for Vec<(T, T)>
-where
-    T: Copy,
-{
-    fn lower(&self, dim: usize) -> VecType<T> {
-        assert!(dim <= self.len());
-        (0..dim).map(|i| self[i].0).collect()
-    }
-    fn upper(&self, dim: usize) -> VecType<T> {
-        assert!(dim <= self.len());
-        (0..dim).map(|i| self[i].1).collect()
-    }
-}
-
-impl<T, V> Bound<T> for Option<V>
-where
-    T: Copy,
-    V: Bound<T>,
-{
-    fn lower(&self, dim: usize) -> VecType<T> {
-        if let Some(bounds) = self {
-            bounds.lower(dim)
-        } else {
-            panic!("No lower bounds for None")
-        }
-    }
-    fn upper(&self, dim: usize) -> VecType<T> {
-        if let Some(bounds) = self {
-            bounds.upper(dim)
-        } else {
-            panic!("No upper bounds for None")
-        }
-    }
+    let iterates = NelderMeadIterates::new(
+        f,
+        x0.clone(),
+        maxfev,
+        simplex,
+        xatol,
+        fatol,
+        adaptive,
+        bounds,
+    )?;
+    optimize(iterates, maxiter)
 }
 
 /// Gets the hyperparameters of the Nelder-Mead Algorithm.
-fn simplex_parameters<'a, A>(x0: VecType<A>, adaptive: bool) -> SimplexParameterResult<'a, A>
+fn simplex_parameters<A>(x0: &VecType<A>, adaptive: bool) -> SimplexParameterResult<A>
 where
     A: Number,
 {
@@ -80,9 +85,9 @@ where
             A::from_f32(0.5),
         )
     } else {
-        return Err(TuutalError::EmptyDimension { x: x0.clone() });
+        return Err(TuutalError::EmptyDimension { x: array![] });
     };
-    Ok((x0, rho, chi, psi, sigma))
+    Ok((rho, chi, psi, sigma))
 }
 
 /// Builds the k-th vector defining a simplex from vector x0.
@@ -312,18 +317,6 @@ where
 }
 
 #[derive(Debug)]
-struct Bounds<A> {
-    lower: VecType<A>,
-    upper: VecType<A>,
-}
-
-impl<A> Bounds<A> {
-    pub fn new(lower: VecType<A>, upper: VecType<A>) -> Self {
-        Self { lower, upper }
-    }
-}
-
-#[derive(Debug)]
 struct Frontier<A> {
     simplex: MatrixType<A>,
     bounds: Option<Bounds<A>>,
@@ -352,7 +345,7 @@ where
 pub struct NelderMeadIterates<F, A> {
     f: F,
     maxfev: usize,
-    simplex: MatrixType<A>,
+    sim: MatrixType<A>,
     xatol: A,
     fatol: A,
     bounds: Option<Bounds<A>>,
@@ -363,6 +356,7 @@ pub struct NelderMeadIterates<F, A> {
     psi: A,
     sigma: A,
     convergence: bool,
+    iter: usize,
 }
 
 impl<F, A> NelderMeadIterates<F, A> {
@@ -370,7 +364,7 @@ impl<F, A> NelderMeadIterates<F, A> {
         f: F,
         x0: VecType<A>,
         maxfev: Option<usize>,
-        simplex: Option<MatrixType<A>>,
+        initial_simplex: Option<MatrixType<A>>,
         xatol: A,
         fatol: A,
         adaptive: bool,
@@ -389,18 +383,18 @@ impl<F, A> NelderMeadIterates<F, A> {
         if maxfev < x0.len() + 1 {
             return Err(TuutalError::MaxFunCall { num: maxfev });
         }
-        let (x0, rho, chi, psi, sigma) = simplex_parameters(x0, adaptive)?;
-        let (simplex, bounds) = clamp(x0, bounds, simplex)?.into_tuple();
+        let (rho, chi, psi, sigma) = simplex_parameters(&x0, adaptive)?;
+        let (sim, bounds) = clamp(x0, bounds, initial_simplex)?.into_tuple();
         let fcalls = 0;
-        let mut fsim = Array::from(vec![A::zero(); simplex.nrows()]);
-        let fcalls = vector_map_scalar(&mut fsim, &simplex, &f, fcalls, maxfev)?;
+        let mut fsim = Array::from(vec![A::zero(); sim.nrows()]);
+        let fcalls = vector_map_scalar(&mut fsim, &sim, &f, fcalls, maxfev)?;
         let sorted_indices = argsort_by(&fsim, |x: &A, y: &A| x.partial_cmp(y).unwrap());
         let fsim = fsim.select(Axis(0), &sorted_indices);
-        let simplex = simplex.select(Axis(0), &sorted_indices);
+        let sim = sim.select(Axis(0), &sorted_indices);
         Ok(Self {
             f,
             maxfev,
-            simplex,
+            sim,
             xatol,
             fatol,
             bounds,
@@ -411,9 +405,11 @@ impl<F, A> NelderMeadIterates<F, A> {
             psi,
             sigma,
             convergence: false,
+            iter: 0,
         })
     }
 
+    /// Computes the objective function value for a given input vector.
     pub fn obj(&self, x: &VecType<A>) -> A
     where
         F: Fn(&VecType<A>) -> A,
@@ -422,6 +418,7 @@ impl<F, A> NelderMeadIterates<F, A> {
         f(x)
     }
 
+    /// Test whether or not the objective function outputs are almost the same for all the vertices.
     pub(crate) fn fstop(&self) -> bool
     where
         A: Number,
@@ -436,13 +433,14 @@ impl<F, A> NelderMeadIterates<F, A> {
         max <= self.fatol
     }
 
+    /// Test whether or not the simplex is almost degenerate.
     pub(crate) fn xstop(&self) -> bool
     where
         A: Number,
     {
         let mut max = A::zero();
-        let x0 = self.simplex.row(0).to_owned();
-        for val in self.simplex.rows() {
+        let x0 = self.sim.row(0).to_owned();
+        for val in self.sim.rows() {
             (&x0 - &val)
                 .iter()
                 .map(|x| {
@@ -455,37 +453,65 @@ impl<F, A> NelderMeadIterates<F, A> {
         max <= self.xatol
     }
 
+    /// Computes the centroid of the simplex.
     pub(crate) fn centroid(&self) -> Option<VecType<A>>
     where
         A: Number + FromPrimitive,
     {
-        let n = self.simplex.nrows();
-        self.simplex.slice(s!(..n - 1, ..)).mean_axis(Axis(0))
+        let last = self.sim.nrows() - 1;
+        self.sim.slice(s!(..last, ..)).mean_axis(Axis(0))
     }
 
+    /// Affine combination of a simplex centroid and the 'last' vertex of the simplex.
     pub(crate) fn affine(&self, centroid: &VecType<A>, a: A, b: A) -> VecType<A>
     where
         for<'b> A: Number
             + Mul<&'b VecType<A>, Output = VecType<A>>
             + Mul<VecType<A>, Output = VecType<A>>,
     {
-        let xr = (A::from_f32(1.) + a * b) * centroid
-            - a * b * self.simplex.row(self.simplex.nrows() - 1).to_owned();
+        let last = self.sim.nrows() - 1;
+        let c = a * b;
+        // xaff = (1 + c) * centroid - c * last_vertex;
+        let xaff = (A::from_f32(1.) + c) * centroid - c * self.sim.row(last).to_owned();
         if let Some(ref bounds) = self.bounds {
-            return clamp_vec(xr, &bounds.lower, &bounds.upper);
+            return clamp_vec(xaff, &bounds.lower, &bounds.upper);
         }
-        xr
+        xaff
     }
 
-    pub(crate) fn sort(&mut self)
-    // -> Result<usize, TuutalError<VecType<A>>>
+    pub(crate) fn shrink(&mut self)
+    where
+        F: Fn(&VecType<A>) -> A,
+        for<'b> A: Number + Mul<VecType<A>, Output = VecType<A>>,
+    {
+        let row0 = self.sim.row(0).to_owned();
+        let shrink = |row| &row0 + self.sigma * (row - &row0);
+        matrix_row_map(&mut self.sim, shrink, 1);
+        if let Some(ref bounds) = self.bounds {
+            matrix_row_map(
+                &mut self.sim,
+                |x| clamp_vec(x, &bounds.lower, &bounds.upper),
+                1,
+            );
+        }
+    }
+
+    pub(crate) fn map_fsim(&mut self) -> Result<usize, TuutalError<VecType<A>>>
     where
         A: Number,
-        // F: Fn(&VecType<A>) -> A,
+        F: Fn(&VecType<A>) -> A,
+    {
+        vector_map_scalar(&mut self.fsim, &self.sim, &self.f, self.fcalls, self.maxfev)
+    }
+
+    /// Sorts the simplex vertices with respect to their objective function values in increasing order.
+    pub(crate) fn sort(&mut self)
+    where
+        A: Number,
     {
         let sorted_indices = argsort_by(&self.fsim, |x: &A, y: &A| x.partial_cmp(y).unwrap());
         self.fsim = self.fsim.select(Axis(0), &sorted_indices);
-        self.simplex = self.simplex.select(Axis(0), &sorted_indices);
+        self.sim = self.sim.select(Axis(0), &sorted_indices);
     }
 }
 
@@ -501,56 +527,54 @@ where
     type Item = VecType<A>;
     fn next(&mut self) -> Option<Self::Item> {
         if self.convergence {
+            self.iter += 1;
             return None; // TODO
-        } else if (self.fcalls + 1 > self.maxfev) | self.fstop() | self.xstop() {
+        } else if self.fstop() | self.xstop() {
             self.convergence = true;
-            // self.fcalls = match self.sort() {
-            //     Err(_) => {
-            //         return None;
-            //     } // TODO
-            //     Ok(val) => val,
-            // };
-            return Some(self.simplex.row(0).to_owned());
+            self.iter += 1;
+            return Some(self.sim.row(0).to_owned());
+        }
+        if self.fcalls + 1 > self.maxfev {
+            self.iter += 1;
+            return None; // TODO
         }
         let one = <A as Number>::from_f32(1.);
         let xbar = self.centroid().unwrap(); // Is it allways safe to .unwrap()?
-                                             // println!("xbar:\n{:?}", xbar);
         let xr = self.affine(&xbar, self.rho, one);
-        // println!("xr:\n{:?}", xr);
         let fxr = self.obj(&xr);
         self.fcalls += 1;
         let mut doshrink = false;
-        let last = self.simplex.nrows() - 1;
+        let last = self.sim.nrows() - 1;
         if fxr < self.fsim[0] {
             if self.fcalls + 1 > self.maxfev {
+                self.iter += 1;
                 return None; // TODO
             }
             let xe = self.affine(&xbar, self.rho, self.chi);
             let fxe = self.obj(&xe);
             self.fcalls += 1;
             if fxe < fxr {
-                self.simplex.row_mut(last).assign(&xe);
+                self.sim.row_mut(last).assign(&xe);
                 self.fsim[last] = fxe;
-                return Some(xe);
             } else {
-                self.simplex.row_mut(last).assign(&xr);
+                self.sim.row_mut(last).assign(&xr);
                 self.fsim[last] = fxr;
-                return Some(xr);
             }
         } else {
             if fxr < self.fsim[last - 1] {
-                self.simplex.row_mut(last).assign(&xr);
+                self.sim.row_mut(last).assign(&xr);
                 self.fsim[last] = fxr;
             } else {
                 if fxr < self.fsim[last] {
                     if self.fcalls + 1 > self.maxfev {
+                        self.iter += 1;
                         return None; // TODO
                     }
                     let xc = self.affine(&xbar, self.psi, self.rho);
                     let fxc = self.obj(&xc);
                     self.fcalls += 1;
                     if fxc <= fxr {
-                        self.simplex.row_mut(last).assign(&xc);
+                        self.sim.row_mut(last).assign(&xc);
                         self.fsim[last] = fxc;
                     } else {
                         doshrink = true;
@@ -558,51 +582,50 @@ where
                 } else {
                     // Perform an inside contraction
                     if self.fcalls + 1 > self.maxfev {
+                        self.iter += 1;
                         return None; // TODO
                     }
                     let xcc = self.affine(&xbar, self.psi, -one);
                     let fxcc = self.obj(&xcc);
                     self.fcalls += 1;
                     if fxcc < self.fsim[last] {
-                        self.simplex.row_mut(last).assign(&xcc);
+                        self.sim.row_mut(last).assign(&xcc);
                         self.fsim[last] = fxcc;
                     } else {
                         doshrink = true;
                     }
                 }
                 if doshrink {
-                    let row0 = self.simplex.row(0).to_owned();
-                    let shrink = |row| &row0 + self.sigma * (row - &row0);
-                    matrix_row_map(&mut self.simplex, shrink, 1);
-                    if let Some(ref bounds) = self.bounds {
-                        matrix_row_map(
-                            &mut self.simplex,
-                            |x| clamp_vec(x, &bounds.lower, &bounds.upper),
-                            1,
-                        );
-                    }
-                    self.fcalls = match vector_map_scalar(
-                        &mut self.fsim,
-                        &self.simplex,
-                        &self.f,
-                        self.fcalls,
-                        self.maxfev,
-                    ) {
+                    self.shrink();
+                    self.fcalls = match self.map_fsim() {
                         Err(_) => {
+                            self.iter += 1;
                             return None;
-                        } // TODO
-                        Ok(val) => val,
+                        } //TODO
+                        Ok(fcalls) => fcalls,
                     };
                 }
             }
         }
         self.sort();
-        // self.fcalls = match self.sort() {
-        //     Err(_) => {
-        //         return None;
-        //     } // TODO
-        //     Ok(val) => val,
-        // };
-        None
+        self.iter += 1;
+        Some(self.sim.row(0).to_owned())
+    }
+}
+
+impl<A, F> Iterable<VecType<A>> for NelderMeadIterates<F, A>
+where
+    F: Fn(&VecType<A>) -> A,
+    for<'b> A: Number
+        + Debug
+        + FromPrimitive
+        + Mul<&'b VecType<A>, Output = VecType<A>>
+        + Mul<VecType<A>, Output = VecType<A>>,
+{
+    fn nb_iter(&self) -> usize {
+        self.iter
+    }
+    fn iterate(&self) -> VecType<A> {
+        self.sim.row(0).to_owned()
     }
 }

@@ -8,20 +8,14 @@ mod test {
         let x0: VecType<f32> = array![];
         assert_eq!(
             TuutalError::EmptyDimension { x: x0.clone() },
-            simplex_parameters(x0, true).unwrap_err()
+            simplex_parameters(&x0, true).unwrap_err()
         );
 
         let x0: VecType<f32> = array![-10., 36.];
-        assert_eq!(
-            (x0.clone(), 1., 2., 0.5, 0.5),
-            simplex_parameters(x0, true).unwrap()
-        );
+        assert_eq!((1., 2., 0.5, 0.5), simplex_parameters(&x0, true).unwrap());
 
         let x0: VecType<f32> = array![-1., 1.];
-        assert_eq!(
-            (x0.clone(), 1., 2., 0.5, 0.5),
-            simplex_parameters(x0, false).unwrap()
-        );
+        assert_eq!((1., 2., 0.5, 0.5), simplex_parameters(&x0, false).unwrap());
 
         let x0 = array![-1., 0., 1.];
         let wrong_size_simplex = Array::from_shape_vec((2, 3), vec![1.; 6]).unwrap();
@@ -118,5 +112,16 @@ mod test {
         for k in 0..3 {
             assert!(l2_diff(&simplex.row(k).to_owned(), &expected.row(k).to_owned()) < 1e-6);
         }
+    }
+
+    #[test]
+    fn test_nelder_mead() {
+        let f = |arr: &VecType<f32>| arr.dot(arr);
+        let x0 = array![-5., -5.];
+        let x_star =
+            nelder_mead::<_, (f32, f32), _>(f, &x0, None, 100, None, 1e-5, 1e-5, true, None)
+                .unwrap();
+        assert!(l2_diff(&x_star, &array![0., 0.]) < 2e-3);
+        assert!(f(&x_star) < 1e-5);
     }
 }

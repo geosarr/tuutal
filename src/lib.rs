@@ -32,8 +32,10 @@ use ndarray::{
 #[allow(unused)]
 pub(crate) use utils::l2_diff;
 
-pub use traits::{Iterable, Number, Scalar};
-pub use zero_order::{bracket, brent_opt, brent_root};
+pub use traits::{Bound, Iterable, Number, Scalar};
+pub use zero_order::{bracket, brent_opt, brent_root, nelder_mead, NelderMeadIterates};
+
+pub(crate) use zero_order::Bounds;
 
 /// Two dimensional owned matrix
 pub type MatrixType<T> = ArrayBase<OwnedRepr<T>, Dim<[usize; 2]>>;
@@ -54,5 +56,5 @@ pub(crate) fn optimize<X: Clone, I: Iterable<X>>(
             });
         }
     }
-    Ok(iterable.iterate().clone())
+    Ok(iterable.iterate())
 }

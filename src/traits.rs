@@ -1,6 +1,6 @@
 use std::ops::{Mul, Sub};
 
-use crate::{MatrixType, VecType};
+use crate::{s, Array, Bounds, MatrixType, VecType};
 
 /// Complements num_traits float-pointing number Float trait by adding
 /// conversion from f32 and provides easy access to exponential numbers.
@@ -53,5 +53,71 @@ pub trait Iterable<X>: std::iter::Iterator<Item = X> {
     /// Number of iterations done so far.
     fn nb_iter(&self) -> usize;
     /// Current iterate.
-    fn iterate(&self) -> &X;
+    fn iterate(&self) -> X;
+}
+
+/// Implements the notion of upper and lower bounds
+pub trait Bound<T> {
+    fn lower(&self, dim: usize) -> VecType<T>;
+    fn upper(&self, dim: usize) -> VecType<T>;
+}
+impl<T> Bound<T> for (T, T)
+where
+    T: Copy,
+{
+    fn lower(&self, dim: usize) -> VecType<T> {
+        Array::from(vec![self.0; dim])
+    }
+    fn upper(&self, dim: usize) -> VecType<T> {
+        Array::from(vec![self.1; dim])
+    }
+}
+impl<T> Bound<T> for Vec<(T, T)>
+where
+    T: Copy,
+{
+    fn lower(&self, dim: usize) -> VecType<T> {
+        assert!(dim <= self.len());
+        (0..dim).map(|i| self[i].0).collect()
+    }
+    fn upper(&self, dim: usize) -> VecType<T> {
+        assert!(dim <= self.len());
+        (0..dim).map(|i| self[i].1).collect()
+    }
+}
+impl<T, V> Bound<T> for Option<V>
+where
+    T: Copy,
+    V: Bound<T>,
+{
+    fn lower(&self, dim: usize) -> VecType<T> {
+        if let Some(bounds) = self {
+            bounds.lower(dim)
+        } else {
+            panic!("No lower bounds for None")
+        }
+    }
+    fn upper(&self, dim: usize) -> VecType<T> {
+        if let Some(bounds) = self {
+            bounds.upper(dim)
+        } else {
+            panic!("No upper bounds for None")
+        }
+    }
+}
+
+impl<T> Bound<T> for Bounds<T>
+where
+    T: Copy,
+{
+    fn lower(&self, dim: usize) -> VecType<T> {
+        let bound = self.lower_bound();
+        assert!(dim <= bound.len());
+        bound.slice(s![..dim]).to_owned()
+    }
+    fn upper(&self, dim: usize) -> VecType<T> {
+        let bound = self.upper_bound();
+        assert!(dim <= bound.len());
+        bound.slice(s![..dim]).to_owned()
+    }
 }

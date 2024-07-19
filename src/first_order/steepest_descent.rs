@@ -251,7 +251,7 @@ where
     armijo(f, x, neg_gradfx, squared_norm_2_gradfx, params) / sum_squared_prev_grad.sqrt()
 }
 
-/// The steepest descent algorithm using Armijo or Powell Wolfe step size methods.
+/// The steepest descent algorithm using some step size method.
 /// It requires an initial guess x<sub>0</sub>.
 /// ```
 /// use tuutal::{array, steepest_descent, SteepestDescentParameter, VecType};
@@ -440,7 +440,7 @@ where
     fn nb_iter(&self) -> usize {
         self.nb_iter()
     }
-    fn iterate(&self) -> &X {
-        self.x()
+    fn iterate(&self) -> X {
+        self.x.clone()
     }
 }
