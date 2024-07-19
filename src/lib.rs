@@ -19,6 +19,7 @@ pub mod zero_order;
 pub mod first_order;
 
 mod traits;
+mod utils;
 
 pub use error::{RootFindingError, TuutalError};
 pub use first_order::{steepest_descent, SteepestDescentIterates, SteepestDescentParameter};
@@ -28,8 +29,13 @@ use ndarray::{
     OwnedRepr,
 };
 
-pub use traits::{DefaultValue, Iterable, Scalar};
-pub use zero_order::{bracket, brent_opt, brent_root};
+#[allow(unused)]
+pub(crate) use utils::l2_diff;
+
+pub use traits::{Bound, Iterable, Number, Scalar};
+pub use zero_order::{bracket, brent_opt, brent_root, nelder_mead, NelderMeadIterates};
+
+pub(crate) use zero_order::Bounds;
 
 /// Two dimensional owned matrix
 pub type MatrixType<T> = ArrayBase<OwnedRepr<T>, Dim<[usize; 2]>>;
@@ -50,5 +56,5 @@ pub(crate) fn optimize<X: Clone, I: Iterable<X>>(
             });
         }
     }
-    Ok(iterable.iterate().clone())
+    Ok(iterable.iterate())
 }

@@ -5,7 +5,7 @@ use std::{
 
 use num_traits::Float;
 
-use crate::{DefaultValue, RootFindingError};
+use crate::{Number, RootFindingError};
 
 /// Inverse quadratic interpolation
 fn inv_quad_interpol<T>(a: T, fa: T, fb: T, fc: T) -> T
@@ -36,7 +36,7 @@ where
 /// ```
 pub fn brent_root<T>(f: impl Fn(T) -> T, mut a: T, mut b: T) -> Result<T, RootFindingError>
 where
-    T: Float + ToString + DefaultValue,
+    T: Float + ToString + Number,
 {
     let fa = f(a);
     let fb = f(b);
