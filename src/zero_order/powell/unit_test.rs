@@ -36,5 +36,10 @@ mod tests {
         let x_star = powell::<_, (f32, f32), _>(f, &x0, None, 100, None, 1e-5, 1e-5, None).unwrap();
         // assert!(l2_diff(&x_star, &array![0., 0.]) < 2e-3);
         // assert!(f(&x_star) < 1e-5);
+
+        // let f = |x: &VecType<f32>| (x[0] - 2.) * x[0] * (x[0] + 2.).powi(2);
+        // let x0 = &array![-1.];
+        // let x_star = powell::<_, (f32, f32), _>(f, &x0, None, 100, None, 1e-5, 1e-5, None).unwrap();
+        // println!("{:?}", x_star);
     }
 }

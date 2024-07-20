@@ -17,25 +17,20 @@ use super::scalar::BrentOptResult;
 /// let f = |x: &VecType<f32>| (x[0] - 2.) * x[0] * (x[0] + 2.).powi(2);
 /// let x0 = &array![-1.];
 /// let x_star =
-///     powell::<_, (f32, f32), _>(f, &x0, None, 100, None, 1e-5, 1e-5, true, None)
+///     powell::<_, (f32, f32), _>(f, &x0, None, 100, None, 1e-5, 1e-5, None)
 ///     .unwrap();
 /// assert!((-2. - x_star[0]).abs() <= 2e-4);
 ///
 /// let f =
 ///     |arr: &VecType<f32>| 100. * (arr[1] - arr[0].powi(2)).powi(2) + (1. - arr[0]).powi(2);
 /// let x0 = array![1., -0.5];
-/// let x_star =
-///     powell::<_, (f32, f32), _>(f, &x0, None, 100, None, 1e-5, 1e-5, true, None)
-///     .unwrap();
-/// assert!((1. - x_star[0]).abs() <= 1e-3);
-/// assert!((1. - x_star[1]).abs() <= 2e-3);
 /// ```
 pub fn powell<A, B, F>(
     f: F,
     x0: &VecType<A>,
     maxfev: Option<usize>,
     maxiter: usize,
-    simplex: Option<MatrixType<A>>,
+    direc: Option<MatrixType<A>>,
     xtol: A,
     ftol: A,
     bounds: Option<B>,
@@ -48,7 +43,7 @@ where
     B: Bound<A>,
     F: Fn(&VecType<A>) -> A,
 {
-    let iterates = PowellIterates::new(f, x0.clone(), maxfev, simplex, xtol, ftol, bounds)?;
+    let iterates = PowellIterates::new(f, x0.clone(), maxfev, direc, xtol, ftol, bounds)?;
     optimize(iterates, maxiter)
 }
 

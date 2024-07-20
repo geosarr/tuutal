@@ -33,7 +33,7 @@ use ndarray::{
 pub(crate) use utils::{is_between, l2_diff};
 
 pub use traits::{Bound, Iterable, Number, Scalar};
-pub use zero_order::{bounded, bracket, brent_opt, brent_root, nelder_mead, NelderMeadIterates};
+pub use zero_order::{bounded, bracket, brent_opt, brent_root, nelder_mead, powell, NelderMeadIterates};
 
 pub(crate) use zero_order::Bounds;
 
