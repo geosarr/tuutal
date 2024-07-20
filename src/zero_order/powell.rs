@@ -33,7 +33,7 @@ where
         let bounds = line_for_search(p, xi, lb, ub).unwrap(); // safe to .unwrap() since xi != 0 at this stage.
         if (bounds.0 == A::neg_infinity()) && (bounds.1 == A::infinity()) {
             // Unbounded minimization
-            return line_search_powell(f, p, xi, tol, None, None, fval, fcalls);
+            line_search_powell(f, p, xi, tol, None, None, fval, fcalls)
         } else if (bounds.0 != A::neg_infinity()) && (bounds.1 != A::infinity()) {
             // Bounded scalar minimization
             let xatol = tol / A::from_f32(100.);
@@ -50,11 +50,11 @@ where
     } else {
         // Non-bounded minimization
         let (alpha_min, fret, fcalls) =
-            match brent_opt(&obj, A::zero(), A::one(), 1000, A::from_f32(1e-6)) {
+            match brent_opt(obj, A::zero(), A::one(), 1000, A::from_f32(1e-6)) {
                 Err(error) => return Err(error),
                 Ok(val) => val,
             };
-        return Ok((fret, alpha_min, fcalls));
+        Ok((fret, alpha_min, fcalls))
     }
 }
 
@@ -107,7 +107,7 @@ where
             func(i)
         })
         .collect();
-    return (yes_indices, no_indices);
+    (yes_indices, no_indices)
 }
 
 fn extremum<A, F>(x: &VecType<A>, mut compare: F) -> Result<A, TuutalError<VecType<A>>>
@@ -124,7 +124,7 @@ where
             m = *val;
         }
     }
-    return Ok(m);
+    Ok(m)
 }
 
 fn min_max<A>(
@@ -146,12 +146,10 @@ where
                     } else {
                         val1
                     }
+                } else if max {
+                    val1
                 } else {
-                    if max {
-                        val1
-                    } else {
-                        val2
-                    }
+                    val2
                 }
             }
         },

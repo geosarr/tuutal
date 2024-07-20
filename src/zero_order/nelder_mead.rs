@@ -237,7 +237,7 @@ where
         fcalls += n;
         Ok(fcalls)
     } else {
-        return Err(TuutalError::MaxFunCall { num: maxfev });
+        Err(TuutalError::MaxFunCall { num: maxfev })
     }
 }
 
@@ -559,52 +559,47 @@ where
                 self.sim.row_mut(last).assign(&xr);
                 self.fsim[last] = fxr;
             }
-        } else {
-            if fxr < self.fsim[last - 1] {
-                self.sim.row_mut(last).assign(&xr);
-                self.fsim[last] = fxr;
-            } else {
-                if fxr < self.fsim[last] {
-                    if self.fcalls + 1 > self.maxfev {
-                        self.iter += 1;
-                        return None; // TODO
-                    }
-                    let xc = self.affine(&xbar, self.psi, self.rho);
-                    let fxc = self.obj(&xc);
-                    self.fcalls += 1;
-                    if fxc <= fxr {
-                        self.sim.row_mut(last).assign(&xc);
-                        self.fsim[last] = fxc;
-                    } else {
-                        doshrink = true;
-                    }
-                } else {
-                    // Perform an inside contraction
-                    if self.fcalls + 1 > self.maxfev {
-                        self.iter += 1;
-                        return None; // TODO
-                    }
-                    let xcc = self.affine(&xbar, self.psi, -one);
-                    let fxcc = self.obj(&xcc);
-                    self.fcalls += 1;
-                    if fxcc < self.fsim[last] {
-                        self.sim.row_mut(last).assign(&xcc);
-                        self.fsim[last] = fxcc;
-                    } else {
-                        doshrink = true;
-                    }
-                }
-                if doshrink {
-                    self.shrink();
-                    self.fcalls = match self.map_fsim() {
-                        Err(_) => {
-                            self.iter += 1;
-                            return None;
-                        } //TODO
-                        Ok(fcalls) => fcalls,
-                    };
-                }
+        } else if fxr < self.fsim[last - 1] {
+            self.sim.row_mut(last).assign(&xr);
+            self.fsim[last] = fxr;
+        } else if fxr < self.fsim[last] {
+            if self.fcalls + 1 > self.maxfev {
+                self.iter += 1;
+                return None; // TODO
             }
+            let xc = self.affine(&xbar, self.psi, self.rho);
+            let fxc = self.obj(&xc);
+            self.fcalls += 1;
+            if fxc <= fxr {
+                self.sim.row_mut(last).assign(&xc);
+                self.fsim[last] = fxc;
+            } else {
+                doshrink = true;
+            }
+        } else if self.fcalls + 1 > self.maxfev {
+            self.iter += 1;
+            return None; // TODO
+        } else {
+            // Perform an inside contraction
+            let xcc = self.affine(&xbar, self.psi, -one);
+            let fxcc = self.obj(&xcc);
+            self.fcalls += 1;
+            if fxcc < self.fsim[last] {
+                self.sim.row_mut(last).assign(&xcc);
+                self.fsim[last] = fxcc;
+            } else {
+                doshrink = true;
+            }
+        }
+        if doshrink {
+            self.shrink();
+            self.fcalls = match self.map_fsim() {
+                Err(_) => {
+                    self.iter += 1;
+                    return None;
+                } //TODO
+                Ok(fcalls) => fcalls,
+            };
         }
         self.sort();
         self.iter += 1;

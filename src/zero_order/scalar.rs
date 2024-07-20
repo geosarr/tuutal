@@ -98,7 +98,7 @@ where
         if iter > maxiter {
             return Err(TuutalError::Convergence {
                 iterate: (xa, xb, xc, fa, fb, fc, fcalls),
-                maxiter: maxiter,
+                maxiter,
             });
         }
         iter += 1;
@@ -314,7 +314,7 @@ where
             } else {
                 Err(TuutalError::Convergence {
                     iterate: (x, a, b, fx, f(a), f(b), fcalls + 2),
-                    maxiter: maxiter,
+                    maxiter,
                 })
             }
         }
@@ -482,7 +482,7 @@ where
     if fcalls >= maxiter {
         return Err(TuutalError::Convergence {
             iterate: (xf, a, b, fx, f(a), f(b), fcalls + 2),
-            maxiter: maxiter,
+            maxiter,
         });
     }
     Ok((xf, fx, fcalls))

@@ -33,7 +33,7 @@ use ndarray::{
 pub(crate) use utils::{is_between, l2_diff};
 
 pub use traits::{Bound, Iterable, Number, Scalar};
-pub use zero_order::{bracket, brent_opt, brent_root, nelder_mead, bounded, NelderMeadIterates};
+pub use zero_order::{bounded, bracket, brent_opt, brent_root, nelder_mead, NelderMeadIterates};
 
 pub(crate) use zero_order::Bounds;
 
@@ -52,7 +52,7 @@ pub(crate) fn optimize<X: Clone, I: Iterable<X>>(
         if iterable.nb_iter() > maxiter {
             return Err(TuutalError::Convergence {
                 iterate: x,
-                maxiter: maxiter,
+                maxiter,
             });
         }
     }
