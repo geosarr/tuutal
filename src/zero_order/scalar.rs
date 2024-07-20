@@ -8,7 +8,9 @@ pub(crate) type BrentOptError<T> = TuutalError<(T, T, T, T, T, T, usize)>;
 pub(crate) type BrentOptResult<T> = Result<(T, T, usize), BrentOptError<T>>;
 type BracketResult<T> = Result<(T, T, T, T, T, T, usize), BrentOptError<T>>;
 
-/// Finds intervals that bracket a minimum of a scalar function f, by searching in the downhill direction from initial points.
+/// Finds intervals that bracket a minimum of a scalar function f.
+///
+/// To do so, its searches in the downhill direction from initial points.
 ///
 /// # Parameters
 /// - **f**: Function with scalar input and scalar output.
@@ -165,9 +167,15 @@ where
     Ok((xa, xb, xc, fa, fb, fc, fcalls))
 }
 
-/// Minimizes a scalar function f using Brent's algorithm.
+/// Minimizes a scalar function f using Unbounded Brent's algorithm.
 ///
 /// The algorithm uses the [`bracket`] function to find bracket intervals, before finding a solution.
+///
+/// # Parameters
+/// - **f**: Objective function with scalar input and scalar output.
+/// - **x<sub>a</sub>**, **x<sub>b</sub>**: Initital points for [`bracket`].
+/// - **maxiter**: Maximum number of iterations for both the [`bracket`] function and this one.
+/// - **tol**: Relative tolerance acceptable for convergence.
 ///
 /// # Returns
 /// - Ok((x, f(x), fcalls)) if it finds a solution x minimizing f at least locally, f(x) is the output of f at x
@@ -181,14 +189,14 @@ where
 /// [opt]: https://github.com/scipy/scipy/blob/v1.13.1/scipy/optimize/_optimize.py
 ///
 /// ```
-/// use tuutal::brent_opt;
+/// use tuutal::brent_unbounded;
 /// let f = |x: f32| (x - 2.) * x * (x + 2.).powi(2);
-/// let (x, fx, fcalls) = brent_opt(f, 0., 1., 1000, 1.48e-8).unwrap_or((0.0, 0.0, 0));
+/// let (x, fx, fcalls) = brent_unbounded(f, 0., 1., 1000, 1.48e-8).unwrap_or((0.0, 0.0, 0));
 /// assert!((x - 1.280776).abs() < 1e-4);
 /// assert!((fx + 9.914950).abs() < 1e-10);
 /// assert_eq!(fcalls, 25);
 /// ```
-pub fn brent_opt<T, F>(f: F, xa: T, xb: T, maxiter: usize, tol: T) -> BrentOptResult<T>
+pub fn brent_unbounded<T, F>(f: F, xa: T, xb: T, maxiter: usize, tol: T) -> BrentOptResult<T>
 where
     T: Number,
     F: Fn(T) -> T,
@@ -324,14 +332,21 @@ where
 
 /// Minimizes a scalar function f using Bounded Brent algorithm.
 ///
-/// In this algorithm the number of iterations coincides with the number of function calls.
+/// In this algorithm, the number of iterations coincides with the number of function calls.
+///
+/// # Parameters
+/// - **f**: Objective function with scalar input and scalar output.
+/// - **bounds**: Lower (first element of **bounds**) and upper (second element of **bounds**)
+///   bounds of the potentiel local mimimum.
+/// - **xatol**: Absolute error acceptable for convergence.
+/// - **maxiter**: Maximum number of iterations.
 ///
 /// # Returns
 /// - Ok((x, f(x), fcalls)) if it finds a solution x minimizing f at least locally, f(x) is the output of f at x
 ///   and fcalls is the number of function f evaluations during the algorithm.
 /// - [Err(TuutalError::SomeVariant)](../error/enum.TuutalError.html):
 ///     - if one of the bounds is infinite.
-///     - if the bounds are unordred: bound.0 > bound.1
+///     - if the bounds are unordered i.e. bounds.0 > bounds.1
 ///     - if one of the final iterates is a NaN value
 ///     - if the number of iterations is reached before convergence.
 ///
@@ -340,16 +355,16 @@ where
 /// [opt]: https://github.com/scipy/scipy/blob/v1.13.1/scipy/optimize/_optimize.py
 ///
 /// ```
-/// use tuutal::bounded;
+/// use tuutal::brent_bounded;
 /// let f = |x: f32| (x - 2.) * x * (x + 2.).powi(2);
 /// let bounds = (0., 2.);
-/// let (x, fx, fcalls) = bounded(f, bounds, 1.48e-8, 1000).unwrap_or((0.0, 0.0, 0));
+/// let (x, fx, fcalls) = brent_bounded(f, bounds, 1.48e-8, 1000).unwrap_or((0.0, 0.0, 0));
 /// assert!((bounds.0 <= x) && (x <= bounds.1));
 /// assert!((x - 1.280776).abs() < 1e-4);
 /// assert!((fx + 9.914950).abs() < 1e-6);
 /// assert_eq!(fcalls, 8);
 /// ```
-pub fn bounded<T, F>(f: F, bounds: (T, T), xatol: T, maxiter: usize) -> BrentOptResult<T>
+pub fn brent_bounded<T, F>(f: F, bounds: (T, T), xatol: T, maxiter: usize) -> BrentOptResult<T>
 where
     T: Number,
     F: Fn(T) -> T,

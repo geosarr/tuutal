@@ -3,8 +3,6 @@ use std::{
     ops::{Div, Mul, Sub},
 };
 
-use num_traits::Float;
-
 use crate::{Number, RootFindingError};
 
 /// Inverse quadratic interpolation
@@ -18,33 +16,38 @@ where
 /// [Brent's root finding][br] algorithm for a scalar function f.
 ///
 /// # Returns
+/// - Ok((x, f(x)) when a solution is found., f(x) is the output of x by f.
 /// - [Err(RootFindingError::Bracketing)](../error/enum.RootFindingError.html) when f(a) * f(b) >= 0.
 /// - [Err(RootFindingError::Interpolation)](../error/enum.RootFindingError.html) when interpolation could not be applied.
-/// - Ok(x) when a solution is found.
 ///
 /// [br]: https://en.wikipedia.org/wiki/Brent%27s_method
 ///
 /// ```
 /// use tuutal::{brent_root, RootFindingError};
-/// assert!((brent_root(|x: f32| x.powi(2) - 4., 0., 3.).unwrap_or(0.) - 2.).abs() <= 1e-4);
-/// assert!((brent_root(|x: f32| x.powi(2) - 2., 0., 2.).unwrap_or(0.) - 1.4141).abs() <= 1e-3);
-/// assert!((brent_root(|x: f32| x.powi(3) + 27., -4., 5.).unwrap_or(0.) + 3.).abs() <= 1e-4);
+/// let res = brent_root(|x: f32| x.powi(2) - 4., 0., 3.).unwrap_or((0., 1.));
+/// assert!((res.0 - 2.).abs() <= 1e-4);
+/// assert!(res.1.abs() <= 1e-6);
+///
+/// let res = brent_root(|x: f32| x.powi(2) - 2., 0., 2.).unwrap_or((0., 1.));
+/// assert!((res.0 - 1.4141).abs() <= 1e-3);
+/// assert!(res.1.abs() <= 1e-6);
+///
+/// let res = brent_root(|x: f32| x.powi(3) + 27., -4., 5.).unwrap_or((0., 1.));
+/// assert!((res.0 + 3.).abs() <= 1e-4);
+/// assert!(res.1.abs() <= 1e-6);
 ///
 /// let (a, b) = (0., 1.);
-/// let error = RootFindingError::Bracketing{a: a.to_string(), b: b.to_string()};
-/// assert_eq!(brent_root(|x: f32| x , a, b).unwrap_err(), error);
+/// let error = RootFindingError::Bracketing {a, b};
+/// assert_eq!(brent_root(|x: f32| x, a, b).unwrap_err(), error);
 /// ```
-pub fn brent_root<T>(f: impl Fn(T) -> T, mut a: T, mut b: T) -> Result<T, RootFindingError>
+pub fn brent_root<T>(f: impl Fn(T) -> T, mut a: T, mut b: T) -> Result<(T, T), RootFindingError<T>>
 where
-    T: Float + ToString + Number,
+    T: Number,
 {
     let fa = f(a);
     let fb = f(b);
     if fa * fb >= T::zero() {
-        return Err(RootFindingError::Bracketing {
-            a: a.to_string(),
-            b: b.to_string(),
-        });
+        return Err(RootFindingError::Bracketing { a, b });
     }
     if fa.abs() < fb.abs() {
         swap(&mut a, &mut b);
@@ -62,10 +65,7 @@ where
         let fc = f(c);
         let mut s = if ((fa - fc).abs() > T::epsilon()) && ((fb - fc).abs() > T::epsilon()) {
             if fa == fb {
-                return Err(RootFindingError::Interpolation {
-                    a: a.to_string(),
-                    b: b.to_string(),
-                });
+                return Err(RootFindingError::Interpolation { a, b });
             }
             // inverse quadratic interpolation
             inv_quad_interpol(a, fa, fb, fc)
@@ -98,5 +98,5 @@ where
             swap(&mut a, &mut b);
         }
     }
-    Ok(b)
+    Ok((b, f(b)))
 }

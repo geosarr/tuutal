@@ -10,6 +10,7 @@ use crate::{
 type SimplexParameterResult<A> = Result<(A, A, A, A), TuutalError<VecType<A>>>;
 
 /// The Nelder-Mead minimization algorithm.
+///
 /// It requires an initial guess x<sub>0</sub>.
 /// ```
 /// use tuutal::{array, nelder_mead, VecType};
@@ -341,6 +342,7 @@ where
     indices
 }
 
+/// Represents the sequence of iterates computed by the Nelder-Mead algorithm.
 pub struct NelderMeadIterates<F, A> {
     f: F,
     maxfev: usize,

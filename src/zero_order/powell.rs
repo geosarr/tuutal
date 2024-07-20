@@ -3,7 +3,8 @@ use ndarray::{Array, Axis};
 use std::ops::Mul;
 
 use crate::{
-    bounded, brent_opt, optimize, Bound, Iterable, MatrixType, Number, TuutalError, VecType,
+    brent_bounded, brent_unbounded, optimize, Bound, Iterable, MatrixType, Number, TuutalError,
+    VecType,
 };
 
 use super::scalar::BrentOptResult;
@@ -78,7 +79,7 @@ where
         } else if (bounds.0 != A::neg_infinity()) && (bounds.1 != A::infinity()) {
             // Bounded scalar minimization
             let xatol = tol / A::from_f32(100.);
-            return match bounded(obj, bounds, xatol, 500) {
+            return match brent_bounded(obj, bounds, xatol, 500) {
                 Err(error) => Err(error),
                 Ok((x, fx, fc)) => Ok((x, fx, fcalls + fc)),
             };
@@ -86,7 +87,7 @@ where
             // One-sided bound minimization.
             let xatol = tol / A::from_f32(100.);
             let bounds = (A::atan(bounds.0), A::atan(bounds.1));
-            return match bounded(|x| obj(A::tan(x)), bounds, xatol, 500) {
+            return match brent_bounded(|x| obj(A::tan(x)), bounds, xatol, 500) {
                 Err(error) => Err(error),
                 Ok((x, fx, fc)) => Ok((A::tan(x), fx, fcalls + fc)),
             };
@@ -94,7 +95,7 @@ where
     } else {
         // Non-bounded minimization
         let (alpha_min, fret, fcalls) =
-            match brent_opt(obj, A::zero(), A::one(), 1000, A::from_f32(1e-6)) {
+            match brent_unbounded(obj, A::zero(), A::one(), 1000, A::from_f32(1e-6)) {
                 Err(error) => return Err(error),
                 Ok(val) => val,
             };
@@ -193,7 +194,7 @@ where
         },
     }
 }
-
+/// Represents the sequence of iterates computed by the Powell algorithm.
 pub struct PowellIterates<F, A> {
     f: F,
     x: VecType<A>,
