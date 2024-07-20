@@ -28,4 +28,15 @@ mod tests {
         assert!(is_between(&xhalf, &lb, &ub));
         assert!(is_between(&xmax, &lb, &ub));
     }
+
+    #[test]
+    fn test_code() {
+        use crate::bounded;
+        let f = |x: f32| (x - 2.) * x * (x + 2.).powi(2);
+        let bounds = (0., 2.);
+        let (x, fx, fcalls) = bounded(f, bounds, 1.48e-8, 1000).unwrap_or((0.0, 0.0, 0));
+        assert!((bounds.0 <= x) && (x <= bounds.1));
+        println!("{:?}", (x, fx, fcalls));
+        println!("{} {}", 1.2808123 - 1.280776, 9.914950 - 9.914949);
+    }
 }

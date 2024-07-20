@@ -53,9 +53,9 @@ type BracketResult<T> = Result<(T, T, T, T, T, T, usize), TuutalError<(T, T, T, 
 ///             iterate: _,
 ///             maxiter,
 ///         } => maxiter,
-///         _ => "-1".to_string(),
+///         _ => 0,
 ///     },
-///     low_maxiter.to_string()
+///     low_maxiter
 /// );
 /// assert_eq!(
 ///     match bracket(|x: f32| x, 0.5, 2., 110., 500).unwrap_err() {
@@ -98,7 +98,7 @@ where
         if iter > maxiter {
             return Err(TuutalError::Convergence {
                 iterate: (xa, xb, xc, fa, fb, fc, fcalls),
-                maxiter: maxiter.to_string(),
+                maxiter: maxiter,
             });
         }
         iter += 1;
@@ -314,9 +314,171 @@ where
             } else {
                 Err(TuutalError::Convergence {
                     iterate: (x, a, b, fx, f(a), f(b), fcalls + 2),
-                    maxiter: maxiter.to_string(),
+                    maxiter: maxiter,
                 })
             }
         }
     }
+}
+
+/// Minimizes a scalar function f using Bounded Brent algorithm.
+///
+/// In this algorithm the number of iterations coincides with the number of function calls.
+///
+/// # Returns
+/// - Ok((x, f(x), fcalls)) if it finds a solution x minimizing f at least locally, f(x) is the output of f at x
+///   and fcalls is the number of function f evaluations during the algorithm.
+/// - [Err(TuutalError::SomeVariant)](../error/enum.TuutalError.html):
+///     - if one of the bounds is infinite.
+///     - if the bounds are unordred: bound.0 > bound.1
+///     - if one of the final iterates is a NaN value
+///     - if the number of iterations is reached before convergence.
+///
+/// Adapted from [Scipy Optimize][opt]
+///
+/// [opt]: https://github.com/scipy/scipy/blob/v1.13.1/scipy/optimize/_optimize.py
+///
+/// ```
+/// use tuutal::bounded;
+/// let f = |x: f32| (x - 2.) * x * (x + 2.).powi(2);
+/// let bounds = (0., 2.);
+/// let (x, fx, fcalls) = bounded(f, bounds, 1.48e-8, 1000).unwrap_or((0.0, 0.0, 0));
+/// assert!((bounds.0 <= x) && (x <= bounds.1));
+/// assert!((x - 1.280776).abs() < 1e-4);
+/// assert!((fx + 9.914950).abs() < 1e-6);
+/// assert_eq!(fcalls, 8);
+/// ```
+pub fn bounded<T, F>(
+    f: F,
+    bounds: (T, T),
+    xatol: T,
+    maxiter: usize,
+) -> Result<(T, T, usize), TuutalError<T>>
+where
+    T: Number,
+    F: Fn(T) -> T,
+{
+    let (x1, x2) = bounds;
+
+    if x1.is_infinite() {
+        return Err(TuutalError::Infinity { x: x1 });
+    }
+    if x2.is_infinite() {
+        return Err(TuutalError::Infinity { x: x2 });
+    }
+    if x1 > x2 {
+        return Err(TuutalError::BoundOrder {
+            lower: x1,
+            upper: x2,
+        });
+    }
+
+    let zero = T::zero();
+    let two = T::from_f32(2.);
+    let three = T::from_f32(3.);
+    let one_half = T::from_f32(0.5);
+
+    let sqrt_eps = T::epsilon().sqrt();
+    let golden_mean = one_half * (three - T::from_f32(5.0).sqrt());
+    let (mut a, mut b) = (x1, x2);
+    let mut fulc = a + golden_mean * (b - a);
+    let (mut nfc, mut xf) = (fulc, fulc);
+    let mut rat = zero;
+    let mut e = zero;
+    let mut x = xf;
+    let mut fx = f(x);
+    let mut fcalls = 1;
+    // let mut fmin_data = (1, xf, fx);
+    let mut fu = T::infinity();
+
+    let mut ffulc = fx;
+    let mut fnfc = fx;
+    let mut xm = one_half * (a + b);
+    let mut tol1 = sqrt_eps * xf.abs() + xatol / three;
+    let mut tol2 = two * tol1;
+
+    while (xf - xm).abs() > tol2 - one_half * (b - a) {
+        let mut golden = true;
+        // Check for parabolic fit
+        if e.abs() > tol1 {
+            golden = false;
+            let mut r = (xf - nfc) * (fx - ffulc);
+            let mut q = (xf - fulc) * (fx - fnfc);
+            let mut p = (xf - fulc) * q - (xf - nfc) * r;
+            q = two * (q - r);
+            if q > T::zero() {
+                p = -p;
+            }
+            q = q.abs();
+            r = e;
+            e = rat;
+
+            // Check for acceptability of parabola
+            if (p.abs() < (one_half * q * r).abs()) && (p > q * (a - xf)) && (p < q * (b - xf)) {
+                rat = (p + zero) / q;
+                x = xf + rat;
+                if ((x - a) < tol2) | ((b - x) < tol2) {
+                    rat = tol1 * (xm - xf).signum();
+                }
+            } else {
+                golden = true;
+            }
+        }
+        if golden {
+            // do a golden-section step
+            e = if xf >= xm { a - xf } else { b - xf };
+            rat = golden_mean * e;
+        }
+        let abs_rat = rat.abs();
+        x = xf + rat.signum() * if abs_rat > tol1 { abs_rat } else { tol1 };
+        fu = f(x);
+        fcalls += 1;
+        // fmin_data = (fcalls, x, fu);
+
+        if fu <= fx {
+            if x >= xf {
+                a = xf
+            } else {
+                b = xf
+            }
+            (fulc, ffulc) = (nfc, fnfc);
+            (nfc, fnfc) = (xf, fx);
+            (xf, fx) = (x, fu)
+        } else {
+            if x < xf {
+                a = x
+            } else {
+                b = x
+            }
+            if (fu <= fnfc) | (nfc == xf) {
+                (fulc, ffulc) = (nfc, fnfc);
+                (nfc, fnfc) = (x, fu);
+            } else if (fu <= ffulc) | (fulc == xf) | (fulc == nfc) {
+                (fulc, ffulc) = (x, fu)
+            }
+        }
+        xm = one_half * (a + b);
+        tol1 = sqrt_eps * xf.abs() + xatol / three;
+        tol2 = two * tol1;
+
+        if fcalls >= maxiter {
+            break;
+        }
+    }
+    if xf.is_nan() {
+        return Err(TuutalError::Nan { x: xf });
+    }
+    if fx.is_nan() {
+        return Err(TuutalError::Nan { x: fx });
+    }
+    if fu.is_nan() {
+        return Err(TuutalError::Nan { x: fu });
+    }
+    if fcalls >= maxiter {
+        return Err(TuutalError::Convergence {
+            iterate: xf,
+            maxiter: maxiter,
+        });
+    }
+    Ok((xf, fx, fcalls))
 }

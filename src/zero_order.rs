@@ -3,7 +3,7 @@ mod powell;
 mod scalar;
 
 pub use nelder_mead::{nelder_mead, NelderMeadIterates};
-pub use scalar::{bracket, brent_opt, root::brent_root};
+pub use scalar::{bounded, bracket, brent_opt, root::brent_root};
 
 use crate::VecType;
 

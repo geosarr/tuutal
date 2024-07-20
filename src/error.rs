@@ -14,7 +14,7 @@ pub enum TuutalError<X> {
     #[error(
         "No valid solution was found before the maximum number of iterations `{maxiter:?}` was reached."
     )]
-    Convergence { iterate: X, maxiter: String },
+    Convergence { iterate: X, maxiter: usize },
     /// This error occurs when at least one lower bound is greater than an upper bound.
     ///
     /// It holds the bounds values.
@@ -35,6 +35,16 @@ pub enum TuutalError<X> {
     /// It holds the maximum number of function evaluation.
     #[error("Maximum function evaluation number is `{num:?}`")]
     MaxFunCall { num: usize },
+    /// This error occurs when an undesired infinite value is encountered.
+    ///
+    /// It hols the value.
+    #[error("Infinity value encoutered.")]
+    Infinity { x: X },
+    /// This error occurs when an undesired nan value is encountered.
+    ///
+    /// It hols the value.
+    #[error("Nan value encoutered.")]
+    Nan { x: X },
 }
 
 /// Handles types of errors occuring during a root finding algorithm.
