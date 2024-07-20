@@ -1,10 +1,56 @@
 mod unit_test;
-use ndarray::Axis;
+use ndarray::{Array, Axis};
 use std::ops::Mul;
 
-use crate::{bounded, brent_opt, Number, TuutalError, VecType};
+use crate::{
+    bounded, brent_opt, optimize, Bound, Iterable, MatrixType, Number, TuutalError, VecType,
+};
 
 use super::scalar::BrentOptResult;
+
+/// The Powell minimization algorithm.
+///
+/// It requires an initial guess x<sub>0</sub>.
+/// ```
+/// use tuutal::{array, powell, VecType};
+/// // Example from python scipy.optimize.minimize_scalar
+/// let f = |x: &VecType<f32>| (x[0] - 2.) * x[0] * (x[0] + 2.).powi(2);
+/// let x0 = &array![-1.];
+/// let x_star =
+///     powell::<_, (f32, f32), _>(f, &x0, None, 100, None, 1e-5, 1e-5, true, None)
+///     .unwrap();
+/// assert!((-2. - x_star[0]).abs() <= 2e-4);
+///
+/// let f =
+///     |arr: &VecType<f32>| 100. * (arr[1] - arr[0].powi(2)).powi(2) + (1. - arr[0]).powi(2);
+/// let x0 = array![1., -0.5];
+/// let x_star =
+///     powell::<_, (f32, f32), _>(f, &x0, None, 100, None, 1e-5, 1e-5, true, None)
+///     .unwrap();
+/// assert!((1. - x_star[0]).abs() <= 1e-3);
+/// assert!((1. - x_star[1]).abs() <= 2e-3);
+/// ```
+pub fn powell<A, B, F>(
+    f: F,
+    x0: &VecType<A>,
+    maxfev: Option<usize>,
+    maxiter: usize,
+    simplex: Option<MatrixType<A>>,
+    xtol: A,
+    ftol: A,
+    bounds: Option<B>,
+) -> Result<VecType<A>, TuutalError<VecType<A>>>
+where
+    for<'b> A: Number
+        + std::fmt::Debug
+        + Mul<&'b VecType<A>, Output = VecType<A>>
+        + Mul<VecType<A>, Output = VecType<A>>,
+    B: Bound<A>,
+    F: Fn(&VecType<A>) -> A,
+{
+    let iterates = PowellIterates::new(f, x0.clone(), maxfev, simplex, xtol, ftol, bounds)?;
+    optimize(iterates, maxiter)
+}
 
 pub fn line_search_powell<A, F>(
     f: F,
@@ -37,14 +83,17 @@ where
         } else if (bounds.0 != A::neg_infinity()) && (bounds.1 != A::infinity()) {
             // Bounded scalar minimization
             let xatol = tol / A::from_f32(100.);
-            return bounded(obj, bounds, xatol, 500);
+            return match bounded(obj, bounds, xatol, 500) {
+                Err(error) => Err(error),
+                Ok((x, fx, fc)) => Ok((x, fx, fcalls + fc)),
+            };
         } else {
             // One-sided bound minimization.
             let xatol = tol / A::from_f32(100.);
             let bounds = (A::atan(bounds.0), A::atan(bounds.1));
             return match bounded(|x| obj(A::tan(x)), bounds, xatol, 500) {
                 Err(error) => Err(error),
-                Ok((x, fx, fcalls)) => Ok((A::tan(x), fx, fcalls)),
+                Ok((x, fx, fc)) => Ok((A::tan(x), fx, fcalls + fc)),
             };
         }
     } else {
@@ -140,18 +189,231 @@ where
         Ok(val1) => match m2 {
             Err(_) => val1,
             Ok(val2) => {
-                if val2 > val1 {
-                    if max {
-                        val2
-                    } else {
-                        val1
-                    }
-                } else if max {
-                    val1
+                if max {
+                    val1.max(val2)
                 } else {
-                    val2
+                    val1.min(val2)
                 }
             }
         },
+    }
+}
+
+pub struct PowellIterates<F, A> {
+    f: F,
+    x: VecType<A>,
+    x1: VecType<A>,
+    maxfev: usize,
+    direc: MatrixType<A>,
+    xtol: A,
+    ftol: A,
+    lower: Option<VecType<A>>,
+    upper: Option<VecType<A>>,
+    fval: A,
+    fcalls: usize,
+    iter: usize,
+}
+
+impl<F, A> PowellIterates<F, A> {
+    pub fn new<B>(
+        f: F,
+        x0: VecType<A>,
+        maxfev: Option<usize>,
+        direc: Option<MatrixType<A>>,
+        xtol: A,
+        ftol: A,
+        bounds: Option<B>,
+    ) -> Result<Self, TuutalError<VecType<A>>>
+    where
+        for<'a> A: Number
+            + Mul<&'a VecType<A>, Output = VecType<A>>
+            + std::fmt::Debug
+            + Mul<VecType<A>, Output = VecType<A>>,
+        B: Bound<A>,
+        F: Fn(&VecType<A>) -> A,
+    {
+        let dim = x0.len();
+        let maxfev = if let Some(max) = maxfev {
+            max
+        } else {
+            dim * 1000
+        };
+        if maxfev < x0.len() + 1 {
+            return Err(TuutalError::MaxFunCall { num: maxfev });
+        }
+        let direc = if direc.is_none() {
+            Array::eye(dim)
+        } else {
+            // TODO check rank of the matrix.
+            direc.unwrap()
+        };
+        let (lower, upper) = if let Some(_bounds) = bounds {
+            let dim = x0.len();
+            let (lower_bound, upper_bound) = (_bounds.lower(dim), _bounds.upper(dim));
+            // check bounds
+            if lower_bound.iter().zip(&upper_bound).any(|(l, u)| l > u) {
+                return Err(TuutalError::BoundOrder {
+                    lower: lower_bound,
+                    upper: upper_bound,
+                });
+            }
+            (Some(lower_bound), Some(upper_bound))
+        } else {
+            (None, None)
+        };
+        let fval = f(&x0);
+        Ok(Self {
+            f,
+            x: x0.clone(),
+            x1: x0,
+            maxfev,
+            direc,
+            xtol,
+            ftol,
+            lower,
+            upper,
+            fval,
+            fcalls: 1,
+            iter: 0,
+        })
+    }
+
+    pub(crate) fn obj(&self, x: &VecType<A>) -> A
+    where
+        F: Fn(&VecType<A>) -> A,
+    {
+        let f = &self.f;
+        f(x)
+    }
+
+    pub fn nb_iter(&self) -> usize {
+        self.iter
+    }
+}
+
+impl<F, A> std::iter::Iterator for PowellIterates<F, A>
+where
+    for<'a> A: Number
+        + Mul<&'a VecType<A>, Output = VecType<A>>
+        + std::fmt::Debug
+        + Mul<VecType<A>, Output = VecType<A>>,
+    F: Fn(&VecType<A>) -> A,
+{
+    type Item = VecType<A>;
+    fn next(&mut self) -> Option<Self::Item> {
+        let zero = A::zero();
+        let one = A::one();
+        let two = A::from_f32(2.);
+        let fx = self.fval;
+        let mut bigind = 0;
+        let mut delta = A::zero();
+        for i in 0..self.x.len() {
+            let direc1 = self.direc.row(i).to_owned();
+            let fx2 = self.fval;
+            let (alpha, fval, fcalls) = match line_search_powell(
+                &self.f,
+                &self.x,
+                &direc1,
+                self.xtol * A::from_f32(100.),
+                self.lower.as_ref(),
+                self.upper.as_ref(),
+                self.fval,
+                self.fcalls,
+            ) {
+                Err(_) => {
+                    self.iter += 1;
+                    panic!("Error line search powell")
+                } // TODO change
+                Ok(val) => val,
+            };
+            self.x = &self.x + alpha * direc1;
+            self.fval = fval;
+            self.fcalls = fcalls;
+            if (fx2 - fval) > delta {
+                delta = fx2 - fval;
+                bigind = i;
+            }
+        }
+
+        let bnd = self.ftol * (fx.abs() + self.fval.abs()) + A::epsilon();
+        if (two * (fx - self.fval) <= bnd)
+            | (self.fcalls > self.maxfev)
+            | (fx.is_nan() && self.fval.is_nan())
+        {
+            self.iter += 1;
+            return None; // TODO change
+                         // break;
+        }
+        // Construct the extrapolated point
+        let direc1 = &self.x - &self.x1;
+        self.x1 = self.x.clone();
+        let lmax = if self.lower.is_none() && self.upper.is_none() {
+            one
+        } else {
+            let bounds = line_for_search(
+                &self.x,
+                &direc1,
+                self.lower.as_ref().unwrap(),
+                self.upper.as_ref().unwrap(),
+            )
+            .unwrap(); // Safe to .unwrap() if direc1 is full rank, have to make sure of it.
+            bounds.1
+        };
+        let x2 = &self.x + lmax.min(one) * &direc1;
+        if self.fcalls + 1 > self.maxfev {
+            self.iter += 1;
+            return None; // TO change
+        }
+        let fx2 = self.obj(&x2);
+        self.fcalls += 1;
+        if fx > fx2 {
+            let mut t = two * (fx + fx2 - two * self.fval);
+            let mut temp = fx - self.fval - delta;
+            t = t * temp * temp;
+            temp = fx - fx2;
+            t = t - delta * temp * temp;
+            if t < zero {
+                let (alpha, fval, fcalls) = match line_search_powell(
+                    &self.f,
+                    &self.x,
+                    &direc1,
+                    self.xtol * A::from_f32(100.),
+                    self.lower.as_ref(),
+                    self.upper.as_ref(),
+                    self.fval,
+                    self.fcalls,
+                ) {
+                    Err(_) => panic!("Error line search powell"), // TODO change
+                    Ok(val) => val,
+                };
+                self.fval = fval;
+                self.fcalls = fcalls;
+                if direc1.iter().any(|d| d != &zero) {
+                    let last = self.direc.nrows() - 1;
+                    let last_row = self.direc.row(last).to_owned();
+                    self.direc.row_mut(bigind).assign(&last_row);
+                    self.direc.row_mut(last).assign(&direc1);
+                }
+                self.x = &self.x + alpha * direc1;
+            }
+        }
+        self.iter += 1;
+        Some(self.x.clone())
+    }
+}
+
+impl<A, F> Iterable<VecType<A>> for PowellIterates<F, A>
+where
+    for<'a> A: Number
+        + Mul<&'a VecType<A>, Output = VecType<A>>
+        + std::fmt::Debug
+        + Mul<VecType<A>, Output = VecType<A>>,
+    F: Fn(&VecType<A>) -> A,
+{
+    fn nb_iter(&self) -> usize {
+        self.iter
+    }
+    fn iterate(&self) -> VecType<A> {
+        self.x.clone()
     }
 }

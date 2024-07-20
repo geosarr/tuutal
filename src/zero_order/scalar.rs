@@ -4,8 +4,9 @@ use crate::Number;
 use crate::TuutalError;
 use std::mem::swap;
 
-pub(crate) type BrentOptResult<T> = Result<(T, T, usize), TuutalError<(T, T, T, T, T, T, usize)>>;
-type BracketResult<T> = Result<(T, T, T, T, T, T, usize), TuutalError<(T, T, T, T, T, T, usize)>>;
+pub(crate) type BrentOptError<T> = TuutalError<(T, T, T, T, T, T, usize)>;
+pub(crate) type BrentOptResult<T> = Result<(T, T, usize), BrentOptError<T>>;
+type BracketResult<T> = Result<(T, T, T, T, T, T, usize), BrentOptError<T>>;
 
 /// Finds intervals that bracket a minimum of a scalar function f, by searching in the downhill direction from initial points.
 ///

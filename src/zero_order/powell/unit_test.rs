@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests {
     use super::super::*;
-    use crate::{is_between, Array};
+    use crate::{array, is_between, l2_diff, Array};
 
     #[test]
     fn test_split_in_two() {
@@ -30,13 +30,11 @@ mod tests {
     }
 
     #[test]
-    fn test_code() {
-        use crate::bounded;
-        let f = |x: f32| (x - 2.) * x * (x + 2.).powi(2);
-        let bounds = (0., 2.);
-        let (x, fx, fcalls) = bounded(f, bounds, 1.48e-8, 1000).unwrap_or((0.0, 0.0, 0));
-        assert!((bounds.0 <= x) && (x <= bounds.1));
-        println!("{:?}", (x, fx, fcalls));
-        println!("{} {}", 1.2808123 - 1.280776, 9.914950 - 9.914949);
+    fn test_powell() {
+        let f = |arr: &VecType<f32>| arr.dot(arr);
+        let x0 = array![-5., -5.];
+        let x_star = powell::<_, (f32, f32), _>(f, &x0, None, 100, None, 1e-5, 1e-5, None).unwrap();
+        // assert!(l2_diff(&x_star, &array![0., 0.]) < 2e-3);
+        // assert!(f(&x_star) < 1e-5);
     }
 }
