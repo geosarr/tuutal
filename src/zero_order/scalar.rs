@@ -4,7 +4,7 @@ use crate::Number;
 use crate::TuutalError;
 use std::mem::swap;
 
-type BrentOptResult<T> = Result<(T, T, usize), TuutalError<(T, T, T, T, T, T, usize)>>;
+pub(crate) type BrentOptResult<T> = Result<(T, T, usize), TuutalError<(T, T, T, T, T, T, usize)>>;
 type BracketResult<T> = Result<(T, T, T, T, T, T, usize), TuutalError<(T, T, T, T, T, T, usize)>>;
 
 /// Finds intervals that bracket a minimum of a scalar function f, by searching in the downhill direction from initial points.
@@ -348,12 +348,7 @@ where
 /// assert!((fx + 9.914950).abs() < 1e-6);
 /// assert_eq!(fcalls, 8);
 /// ```
-pub fn bounded<T, F>(
-    f: F,
-    bounds: (T, T),
-    xatol: T,
-    maxiter: usize,
-) -> Result<(T, T, usize), TuutalError<T>>
+pub fn bounded<T, F>(f: F, bounds: (T, T), xatol: T, maxiter: usize) -> BrentOptResult<T>
 where
     T: Number,
     F: Fn(T) -> T,
@@ -361,15 +356,19 @@ where
     let (x1, x2) = bounds;
 
     if x1.is_infinite() {
-        return Err(TuutalError::Infinity { x: x1 });
+        return Err(TuutalError::Infinity {
+            x: (x1, x1, x1, x1, x1, x1, 0),
+        });
     }
     if x2.is_infinite() {
-        return Err(TuutalError::Infinity { x: x2 });
+        return Err(TuutalError::Infinity {
+            x: (x2, x2, x2, x2, x2, x2, 0),
+        });
     }
     if x1 > x2 {
         return Err(TuutalError::BoundOrder {
-            lower: x1,
-            upper: x2,
+            lower: (x1, x1, x1, x1, x1, x1, 0),
+            upper: (x2, x2, x2, x2, x2, x2, 0),
         });
     }
 
@@ -466,17 +465,23 @@ where
         }
     }
     if xf.is_nan() {
-        return Err(TuutalError::Nan { x: xf });
+        return Err(TuutalError::Nan {
+            x: (xf, a, b, fx, f(a), f(b), fcalls + 2),
+        });
     }
     if fx.is_nan() {
-        return Err(TuutalError::Nan { x: fx });
+        return Err(TuutalError::Nan {
+            x: (xf, a, b, fx, f(a), f(b), fcalls + 2),
+        });
     }
     if fu.is_nan() {
-        return Err(TuutalError::Nan { x: fu });
+        return Err(TuutalError::Nan {
+            x: (xf, a, b, fx, f(a), f(b), fcalls + 2),
+        });
     }
     if fcalls >= maxiter {
         return Err(TuutalError::Convergence {
-            iterate: xf,
+            iterate: (xf, a, b, fx, f(a), f(b), fcalls + 2),
             maxiter: maxiter,
         });
     }

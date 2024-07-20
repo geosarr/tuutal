@@ -2,7 +2,9 @@ mod unit_test;
 use ndarray::Axis;
 use std::ops::Mul;
 
-use crate::{brent_opt, Number, TuutalError, VecType};
+use crate::{bounded, brent_opt, Number, TuutalError, VecType};
+
+use super::scalar::BrentOptResult;
 
 pub fn line_search_powell<A, F>(
     f: F,
@@ -12,7 +14,8 @@ pub fn line_search_powell<A, F>(
     lower_bound: Option<&VecType<A>>,
     upper_bound: Option<&VecType<A>>,
     fval: A, // equal to f(p) (to avoid recomputing f(p))
-) -> Result<(A, A), TuutalError<(A, A, A, A, A, A, usize)>>
+    fcalls: usize,
+) -> BrentOptResult<A>
 where
     for<'a> A: Number + Mul<&'a VecType<A>, Output = VecType<A>> + std::fmt::Debug,
     F: Fn(&VecType<A>) -> A,
@@ -22,27 +25,36 @@ where
         f(&x)
     };
     if xi.iter().all(|x| *x == A::zero()) {
-        return Ok((fval, A::zero()));
+        return Ok((A::zero(), fval, fcalls));
     }
     if lower_bound.is_some() | upper_bound.is_some() {
         // Line for search.
         let (lb, ub) = (lower_bound.unwrap(), upper_bound.unwrap());
-        let bound = line_for_search(p, xi, lb, ub).unwrap(); // safe to .unwrap() since xi != 0 at this stage.
-        if (bound.0 == A::neg_infinity()) && (bound.1 == A::infinity()) {
-            // Unboundend minimization
-            return line_search_powell(f, p, xi, tol, None, None, fval);
-        } else if bound.0.is_infinite() | bound.1.is_infinite() {
-            let bound = (A::atan(bound.0), A::atan(bound.1));
+        let bounds = line_for_search(p, xi, lb, ub).unwrap(); // safe to .unwrap() since xi != 0 at this stage.
+        if (bounds.0 == A::neg_infinity()) && (bounds.1 == A::infinity()) {
+            // Unbounded minimization
+            return line_search_powell(f, p, xi, tol, None, None, fval, fcalls);
+        } else if (bounds.0 != A::neg_infinity()) && (bounds.1 != A::infinity()) {
+            // Bounded scalar minimization
+            let xatol = tol / A::from_f32(100.);
+            return bounded(obj, bounds, xatol, 500);
+        } else {
+            // One-sided bound minimization.
+            let xatol = tol / A::from_f32(100.);
+            let bounds = (A::atan(bounds.0), A::atan(bounds.1));
+            return match bounded(|x| obj(A::tan(x)), bounds, xatol, 500) {
+                Err(error) => Err(error),
+                Ok((x, fx, fcalls)) => Ok((A::tan(x), fx, fcalls)),
+            };
         }
-        Ok((A::zero(), A::zero())) // TODO change.
     } else {
         // Non-bounded minimization
-        let (alpha_min, fret, _) =
+        let (alpha_min, fret, fcalls) =
             match brent_opt(&obj, A::zero(), A::one(), 1000, A::from_f32(1e-6)) {
                 Err(error) => return Err(error),
                 Ok(val) => val,
             };
-        return Ok((fret, alpha_min));
+        return Ok((fret, alpha_min, fcalls));
     }
 }
 
