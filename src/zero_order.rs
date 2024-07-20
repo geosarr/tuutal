@@ -1,4 +1,5 @@
 mod nelder_mead;
+mod powell;
 mod scalar;
 
 pub use nelder_mead::{nelder_mead, NelderMeadIterates};

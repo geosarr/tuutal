@@ -1,4 +1,3 @@
-#[cfg(test)]
 mod unit_test;
 use crate::{optimize, Iterable, Number, Scalar, TuutalError};
 use ndarray::linalg::Dot;

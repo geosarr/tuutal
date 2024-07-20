@@ -1,5 +1,4 @@
 use std::{fmt::Debug, ops::Mul};
-#[cfg(test)]
 mod unit_test;
 use ndarray::{s, Axis};
 use num_traits::FromPrimitive;
