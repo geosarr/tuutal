@@ -236,11 +236,11 @@ impl<F, A> PowellIterates<F, A> {
         if maxfev < x0.len() + 1 {
             return Err(TuutalError::MaxFunCall { num: maxfev });
         }
-        let direc = if direc.is_none() {
-            Array::eye(dim)
-        } else {
+        let direc = if let Some(dir) = direc {
             // TODO check rank of the matrix.
-            direc.unwrap()
+            dir
+        } else {
+            Array::eye(dim)
         };
         let (lower, upper) = if let Some(_bounds) = bounds {
             let dim = x0.len();
