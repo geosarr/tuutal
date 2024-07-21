@@ -132,7 +132,7 @@ where
 
 /// Brent's root finding algorithm using inverse quadratic interpolation
 ///
-/// The number of iterations coincides with the number of function evalutions - 2.
+/// The number of iterations coincides with the number of function evaluations - 2.
 ///
 /// ```
 /// use tuutal::{brentq, RootFindingError};
