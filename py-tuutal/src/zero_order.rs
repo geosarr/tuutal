@@ -1,10 +1,11 @@
+use numpy::{IntoPyArray, PyArray1, PyReadonlyArray1, PyReadonlyArray2};
 use pyo3::exceptions::{PyRuntimeError, PyUserWarning, PyValueError};
 use pyo3::prelude::*;
 use tuutal::{
     brent_bounded as brent_bounded_rs, brent_root as brent_root_rs,
-    brent_unbounded as brent_unbounded_rs, brentq as brentq_rs, RootFindingError, TuutalError,
+    brent_unbounded as brent_unbounded_rs, brentq as brentq_rs, nelder_mead as nelder_mead_rs,
+    RootFindingError, TuutalError, VecType,
 };
-
 macro_rules! wrap_scalar_func {
     ($py:expr, $py_func:expr) => {
         |x: f64| {
@@ -17,6 +18,72 @@ macro_rules! wrap_scalar_func {
     };
 }
 
+macro_rules! wrap_nd_func {
+    ($py:expr, $py_func:expr) => {
+        |x: &VecType<f64>| {
+            $py_func
+                .call1($py, (x.clone().into_pyarray_bound($py),))
+                .expect("python objective function failed.")
+                .extract::<f64>($py)
+                .expect("python function should return a float-pointing number")
+        }
+    };
+}
+
+#[pyfunction]
+pub fn nelder_mead<'py>(
+    py: Python<'py>,
+    f: PyObject,
+    x0: PyReadonlyArray1<f64>,
+    maxiter: usize,
+    xatol: f64,
+    fatol: f64,
+    adaptive: bool,
+    maxfev: Option<usize>,
+    simplex: Option<PyReadonlyArray2<f64>>,
+    bounds: Option<(f64, f64)>,
+) -> PyResult<Bound<'py, PyArray1<f64>>> {
+    let func = wrap_nd_func!(py, f);
+    let simplex = if let Some(sim) = simplex {
+        Some(sim.as_array().to_owned())
+    } else {
+        None
+    };
+    match nelder_mead_rs(
+        func,
+        &x0.as_array().to_owned(),
+        maxfev,
+        maxiter,
+        simplex,
+        xatol,
+        fatol,
+        adaptive,
+        bounds,
+    ) {
+        Ok(value) => Ok(value.into_pyarray_bound(py)),
+        Err(error) => match error {
+            // Maybe better to throw also the current iterate and the number
+            // actual function calls for this exception.
+            TuutalError::MaxFunCall { num: maxfev } => Err(PyRuntimeError::new_err(
+                "Maximum number of function calls exceeded or will be exceeded.",
+            )),
+            TuutalError::EmptyDimension { x } => {
+                Err(PyValueError::new_err("Empty initial input vector"))
+            }
+            TuutalError::BoundOrder { lower: _, upper: _ } => Err(PyValueError::new_err(
+                "The upper bound(s) should be greater than the lower bound(s)",
+            )),
+            TuutalError::Simplex {
+                size: (nrows, ncols),
+                msg: _,
+            } => Err(PyValueError::new_err(format!(
+                "Initial simplex shape = {:?}, but should be (N+1, N) with N = len(x0)",
+                (nrows, ncols)
+            ))),
+            _ => Err(PyRuntimeError::new_err("Unknown error")), // Should never come this far.
+        },
+    }
+}
 /// Brent algorithm for scalar function root finding.
 #[pyfunction]
 pub fn brent_root(
@@ -92,7 +159,7 @@ pub fn brent_bounded(
             ))),
             TuutalError::Convergence {
                 iterate: (xf, a, b, fx, fa, fb, fcalls),
-                maxiter,
+                maxiter: _,
             } => Err(PyUserWarning::new_err(format!(
                 "Maximum number of iterations reached before convergence {:?}",
                 (xf, a, b, fx, fa, fb, fcalls)
@@ -120,7 +187,7 @@ pub fn brent_unbounded(
             // convergence and the actual brent algorithm convergence
             TuutalError::Convergence {
                 iterate: (xa, xb, xc, fa, fb, fc, fcalls),
-                maxiter,
+                maxiter: _,
             } => Err(PyUserWarning::new_err(format!(
                 "Maximum number of iterations reached before convergence {:?}",
                 (xa, xb, xc, fa, fb, fc, fcalls)

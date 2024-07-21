@@ -8,5 +8,6 @@ name = "tuutal"
 crate-type = ["cdylib"]
 
 [dependencies]
-pyo3 = "0.22.0"
-tuutal = {path = "../"} # local rust tuutal crate
+pyo3 = "0.21.0"
+numpy = "0.21.0"
+tuutal = { path = "../" } # local rust tuutal crate
