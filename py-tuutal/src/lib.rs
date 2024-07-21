@@ -5,6 +5,7 @@ use pyo3::exceptions::{PyRuntimeError, PyUserWarning, PyValueError};
 use pyo3::prelude::*;
 use zero_order::brent_bounded as brent_bounded_rs;
 use zero_order::brent_root as brent_root_rs;
+use zero_order::brentq as brentq_rs;
 
 macro_rules! wrap_scalar_func {
     ($py:expr, $py_func:expr) => {
@@ -20,9 +21,41 @@ macro_rules! wrap_scalar_func {
 
 /// Brent algorithm for scalar function root finding.
 #[pyfunction]
-fn brent_root(py: Python, f: PyObject, a: f64, b: f64) -> PyResult<(f64, f64)> {
+fn brent_root(
+    py: Python,
+    f: PyObject,
+    a: f64,
+    b: f64,
+    xtol: f64,
+    rtol: f64,
+    maxiter: usize,
+) -> PyResult<(f64, f64)> {
     let func = wrap_scalar_func!(py, f);
-    return match brent_root_rs(func, a, b) {
+    return match brent_root_rs(func, a, b, xtol, rtol, maxiter) {
+        Ok(val) => Ok(val),
+        Err(error) => match error {
+            RootFindingError::Bracketing { a: x, b: y } => Err(PyValueError::new_err(format!(
+                "Bracketing condition f(a) * f(b) < 0, not satisfied by inputs a={x} and b={y}",
+            ))),
+            RootFindingError::Interpolation { a: x, b: y } => Err(PyValueError::new_err(format!(
+                "Interpolation cannot be performed since f(a) = f(b) for a={x} and b={y}",
+            ))),
+        },
+    };
+}
+
+#[pyfunction]
+fn brentq(
+    py: Python,
+    f: PyObject,
+    a: f64,
+    b: f64,
+    xtol: f64,
+    rtol: f64,
+    maxiter: usize,
+) -> PyResult<(f64, f64, usize)> {
+    let func = wrap_scalar_func!(py, f);
+    return match brentq_rs(func, a, b, xtol, rtol, maxiter) {
         Ok(val) => Ok(val),
         Err(error) => match error {
             RootFindingError::Bracketing { a: x, b: y } => Err(PyValueError::new_err(format!(
@@ -75,6 +108,7 @@ fn brent_bounded(
 #[pymodule]
 fn tuutal(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(brent_root, m)?)?;
+    m.add_function(wrap_pyfunction!(brentq, m)?)?;
     m.add_function(wrap_pyfunction!(brent_bounded, m)?)?;
     Ok(())
 }

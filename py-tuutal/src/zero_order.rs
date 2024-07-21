@@ -1,1 +1,1 @@
-pub use tuutal::{brent_bounded, brent_root};
+pub use tuutal::{brent_bounded, brent_root, brentq};
