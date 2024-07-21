@@ -1,0 +1,12 @@
+name: tuutal
+channels:
+  - defaults
+dependencies:
+  - pip=24.0=py310haa95532_0
+  - python=3.10.0=h96c0403_3
+  - setuptools=69.5.1=py310haa95532_0
+  - pip:
+      - maturin==1.7.0
+      - numpy==2.0.0
+      - scipy==1.13.1
+      - tomli==2.0.1
