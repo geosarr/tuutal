@@ -1,1 +1,1 @@
-pub use tuutal::RootFindingError;
+pub use tuutal::{RootFindingError, TuutalError};
