@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests {
     use super::super::*;
-    use crate::{array, is_between, Array};
+    use crate::{array, is_between, l2_diff, Array};
 
     #[test]
     fn test_split_in_two() {
@@ -30,16 +30,23 @@ mod tests {
     }
 
     #[test]
+    fn test_line_search_powell() {
+        let f = |arr: &VecType<f32>| arr.dot(arr);
+        let x0 = array![0., 1.];
+        let d = array![-1., 1.];
+        let (alpha, fval, fcalls) =
+            line_search_powell(f, &x0, &d, 1e-3, None, None, f(&x0), 0).unwrap();
+        assert!((alpha + 0.5).abs() < 1e-6);
+        assert!((fval - 0.5).abs() < 1e-6);
+        assert_eq!(fcalls, 20);
+    }
+
+    #[test]
     fn test_powell() {
         let f = |arr: &VecType<f32>| arr.dot(arr);
         let x0 = array![-5., -5.];
-        let _ = powell::<_, (f32, f32), _>(f, &x0, None, 100, None, 1e-5, 1e-5, None).unwrap();
-        // assert!(l2_diff(&x_star, &array![0., 0.]) < 2e-3);
-        // assert!(f(&x_star) < 1e-5);
-
-        // let f = |x: &VecType<f32>| (x[0] - 2.) * x[0] * (x[0] + 2.).powi(2);
-        // let x0 = &array![-1.];
-        // let x_star = powell::<_, (f32, f32), _>(f, &x0, None, 100, None, 1e-5, 1e-5, None).unwrap();
-        // println!("{:?}", x_star);
+        let x_star = powell::<_, (f32, f32), _>(f, &x0, None, 100, None, 1e-5, 1e-5, None).unwrap();
+        assert!(l2_diff(&x_star, &array![0., 0.]) < 1e-6);
+        assert!(f(&x_star) < 1e-6);
     }
 }

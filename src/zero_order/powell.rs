@@ -20,11 +20,16 @@ use super::scalar::BrentOptResult;
 /// let x_star =
 ///     powell::<_, (f32, f32), _>(f, &x0, None, 100, None, 1e-5, 1e-5, None)
 ///     .unwrap();
-/// assert!((-2. - x_star[0]).abs() <= 2e-4);
+/// assert!((x_star[0] - 1.280776).abs() <= 1e-4);
 ///
 /// let f =
 ///     |arr: &VecType<f32>| 100. * (arr[1] - arr[0].powi(2)).powi(2) + (1. - arr[0]).powi(2);
 /// let x0 = array![1., -0.5];
+/// let x_star =
+///     powell::<_, (f32, f32), _>(f, &x0, None, 100, None, 1e-5, 1e-5, None)
+///     .unwrap();
+/// assert!((x_star[0] - 1.).abs() <= 1e-5);
+/// assert!((x_star[1] - 1.).abs() <= 1e-5);
 /// ```
 pub fn powell<A, B, F>(
     f: F,
@@ -94,12 +99,11 @@ where
         }
     } else {
         // Non-bounded minimization
-        let (alpha_min, fret, fcalls) =
-            match brent_unbounded(obj, A::zero(), A::one(), 1000, A::from_f32(1e-6)) {
-                Err(error) => return Err(error),
-                Ok(val) => val,
-            };
-        Ok((fret, alpha_min, fcalls))
+        let (alpha_min, fret, fcalls) = match brent_unbounded(obj, None, 1000, A::from_f32(1e-6)) {
+            Err(error) => return Err(error),
+            Ok(val) => val,
+        };
+        Ok((alpha_min, fret, fcalls))
     }
 }
 
@@ -341,7 +345,7 @@ where
                          // break;
         }
         // Construct the extrapolated point
-        let direc1 = &self.x - &self.x1;
+        let mut direc1 = &self.x - &self.x1;
         self.x1 = self.x.clone();
         let lmax = if self.lower.is_none() && self.upper.is_none() {
             one
@@ -384,13 +388,14 @@ where
                 };
                 self.fval = fval;
                 self.fcalls = fcalls;
+                direc1 = alpha * direc1;
                 if direc1.iter().any(|d| d != &zero) {
                     let last = self.direc.nrows() - 1;
                     let last_row = self.direc.row(last).to_owned();
                     self.direc.row_mut(bigind).assign(&last_row);
                     self.direc.row_mut(last).assign(&direc1);
                 }
-                self.x = &self.x + alpha * direc1;
+                self.x = &self.x + direc1;
             }
         }
         self.iter += 1;

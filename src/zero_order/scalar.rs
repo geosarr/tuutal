@@ -154,12 +154,7 @@ where
         fb = fc;
         fc = fw;
     }
-    let cond1 = ((fb < fc) && (fb <= fa)) | ((fb < fa) && (fb <= fc));
-    let cond2 = ((xa < xb) && (xb < xc)) | ((xc < xb) && (xb < xa));
-    let cond3 =
-        (xa.abs() < T::infinity()) && (xb.abs() < T::infinity()) && (xc.abs() < T::infinity());
-
-    if !(cond1 && cond2 && cond3) {
+    if !is_bracket(xa, xb, xc, fa, fb, fc) {
         return Err(TuutalError::Bracketing {
             iterate: (xa, xb, xc, fa, fb, fc, fcalls),
         });
@@ -167,15 +162,69 @@ where
     Ok((xa, xb, xc, fa, fb, fc, fcalls))
 }
 
+fn is_bracket<T>(xa: T, xb: T, xc: T, fa: T, fb: T, fc: T) -> bool
+where
+    T: Number,
+{
+    let cond1 = ((fb < fc) && (fb <= fa)) | ((fb < fa) && (fb <= fc));
+    let cond2 = ((xa < xb) && (xb < xc)) | ((xc < xb) && (xb < xa));
+    let cond3 =
+        (xa.abs() < T::infinity()) && (xb.abs() < T::infinity()) && (xc.abs() < T::infinity());
+    cond1 && cond2 && cond3
+}
+
+fn handle_bracket<F, T>(f: F, brack: Option<&[T]>, maxiter: usize) -> BracketResult<T>
+where
+    T: Number,
+    F: Fn(T) -> T,
+{
+    let zero = T::zero();
+    let one = T::one();
+    let grow_limit = T::from_f32(110.);
+    if let Some(br) = brack {
+        if br.len() == 2 {
+            bracket(&f, br[0], br[1], grow_limit, maxiter)
+        } else if br.len() == 3 {
+            let (a, b, c) = (br[0], br[1], br[2]);
+            let (fa, fb, fc, feval) = (f(a), f(b), f(c), 3);
+            let iterate = (a, b, c, fa, fb, fc, feval);
+            if !is_bracket(a, b, c, fa, fb, fc) {
+                return Err(TuutalError::Bracketing { iterate: iterate });
+            }
+            Ok(iterate)
+        } else if br.len() == 6 {
+            let (a, b, c, fa, fb, fc) = (br[0], br[1], br[2], br[3], br[4], br[5]);
+            let iterate = (a, b, c, fa, fb, fc, 0);
+            if !is_bracket(a, b, c, fa, fb, fc) {
+                return Err(TuutalError::Bracketing { iterate: iterate });
+            }
+            Ok(iterate)
+        } else {
+            return Err(TuutalError::Value {
+                msg: "brack must be of length 2, 3 or 6".to_string(),
+            });
+        }
+    } else {
+        bracket(&f, zero, one, grow_limit, maxiter)
+    }
+}
+
 /// Minimizes a scalar function f using Unbounded Brent's algorithm.
 ///
-/// The algorithm uses the [`bracket`] function to find bracket intervals, before finding a solution.
+/// The algorithm uses the [`bracket`] function to find bracket intervals (if no bracket provided), before finding a solution.
 ///
 /// # Parameters
 /// - **f**: Objective function with scalar input and scalar output.
-/// - **x<sub>a</sub>**, **x<sub>b</sub>**: Initital points for [`bracket`].
+/// - **brack**: Optional initial points which are
+///   - either finite scalars (x<sub>a</sub>, x<sub>b</sub>, x<sub>c</sub>) satisfying:
+///     - (x<sub>a</sub> < x<sub>b</sub> < x<sub>c</sub>) or (x<sub>c</sub> < x<sub>b</sub> < x<sub>a</sub>)
+///     - f<sub>b</sub>=f(x<sub>b</sub>) is below f<sub>a</sub>=f(x<sub>a</sub>) and f<sub>c</sub>=f(x<sub>c</sub>): (f<sub>b</sub> < f<sub>c</sub> and f<sub>b</sub> <= f<sub>a</sub>)
+///       or (f<sub>b</sub> < f<sub>a</sub> and f<sub>b</sub> <= f<sub>c</sub>) (see [`bracket`]).
+///   - or a pair (x<sub>a</sub>, x<sub>b</sub>) of input points for [`bracket`]
 /// - **maxiter**: Maximum number of iterations for both the [`bracket`] function and this one.
-/// - **tol**: Relative tolerance acceptable for convergence.
+/// - **xtol**: Relative tolerance acceptable for convergence.
+///
+///   If a bracket is provided (in **brack** argument), make sure it is either a triple (x<sub>a</sub>, x<sub>b</sub>, x<sub>c</sub>) or (x<sub>a</sub>, x<sub>b</sub>, x<sub>c</sub>, f<sub>a</sub>, f<sub>b</sub>, f<sub>c</sub>).
 ///
 /// # Returns
 /// - Ok((x, f(x), fcalls)) if it finds a solution x minimizing f at least locally, f(x) is the output of f at x
@@ -191,142 +240,143 @@ where
 /// ```
 /// use tuutal::brent_unbounded;
 /// let f = |x: f32| (x - 2.) * x * (x + 2.).powi(2);
-/// let (x, fx, fcalls) = brent_unbounded(f, 0., 1., 1000, 1.48e-8).unwrap_or((0.0, 0.0, 0));
+/// let (x, fx, fcalls) = brent_unbounded(f, Some(&[0., 1.]), 1000, 1.48e-8).unwrap_or((0.0, 0.0, 0));
 /// assert!((x - 1.280776).abs() < 1e-4);
 /// assert!((fx + 9.914950).abs() < 1e-10);
 /// assert_eq!(fcalls, 25);
 /// ```
-pub fn brent_unbounded<T, F>(f: F, xa: T, xb: T, maxiter: usize, tol: T) -> BrentOptResult<T>
+pub fn brent_unbounded<T, F>(
+    f: F,
+    brack: Option<&[T]>,
+    maxiter: usize,
+    xtol: T,
+) -> BrentOptResult<T>
 where
     T: Number,
     F: Fn(T) -> T,
 {
-    match bracket(&f, xa, xb, T::from_f32(110.), maxiter) {
-        Err(error) => Err(error),
-        Ok((xa, xb, xc, _, fb, _, mut fcalls)) => {
-            let mut x = xb;
-            let mut w = xb;
-            let mut v = xb;
-            let mut fw = fb;
-            let mut fv = fb;
-            let mut fx = fb;
-            let (mut a, mut b) = if xa < xc { (xa, xc) } else { (xc, xa) };
-            let zero = T::zero();
-            let mut deltax = zero;
-            // small number that protects against trying to achieve fractional accuracy for a minimum that happens to be exactly zero
-            // see for more details Press, W., S.A. Teukolsky, W.T. Vetterling, and B.P. Flannery. Numerical Recipes in C. Cambridge University Press
-            let _mintol = T::epsilon();
-            let _cg = T::from_f32(0.381_966);
-            let one_half = T::from_f32(0.5);
-            // fix of scipy rat variable initialization question.
-            let mut rat = if x >= one_half * (a + b) {
-                a - x
-            } else {
-                b - x
-            } * _cg;
-            let one = T::one();
-            let two = T::from_f32(2.);
-            let mut iter = 0;
-            while iter < maxiter {
-                let tol1 = tol * x.abs() + _mintol;
-                let tol2 = two * tol1;
-                let xmid = one_half * (a + b);
-                // check for convergence
-                if (x - xmid).abs() < (tol2 - one_half * (b - a)) {
-                    break;
-                }
-                if deltax.abs() <= tol1 {
-                    // do a golden section step
-                    deltax = if x >= xmid { a - x } else { b - x };
-                    rat = _cg * deltax;
-                } else {
-                    // do a parabolic step
-                    let tmp1 = (x - w) * (fx - fv);
-                    let tmp2 = (x - v) * (fx - fw);
-                    let mut p = (x - v) * tmp2 - (x - w) * tmp1;
-                    let mut tmp2 = two * (tmp2 - tmp1);
-                    if tmp2 > zero {
-                        p = -p;
-                    }
-                    tmp2 = tmp2.abs();
-                    let dx_temp = deltax;
-                    deltax = rat;
-                    // check parabolic fit
-                    if (p > tmp2 * (a - x))
-                        && (p < tmp2 * (b - x))
-                        && (p.abs() < (one_half * tmp2 * dx_temp).abs())
-                    {
-                        rat = p * one / tmp2; // if parabolic step is useful.
-                        let u = x + rat;
-                        if ((u - a) < tol2) | ((b - u) < tol2) {
-                            if xmid >= x {
-                                rat = tol1;
-                            } else {
-                                rat = -tol1;
-                            }
-                        }
-                    } else {
-                        if x >= xmid {
-                            deltax = a - x; // if it's not do a golden section step
-                        } else {
-                            deltax = b - x;
-                        }
-                        rat = _cg * deltax;
-                    }
-                }
-                let u = if rat.abs() < tol1 {
-                    // update by at least tol1
-                    if rat >= zero {
-                        x + tol1
-                    } else {
-                        x - tol1
-                    }
-                } else {
-                    x + rat
-                };
-
-                let fu = f(u);
-                fcalls += 1;
-                if fu > fx {
-                    // if it's bigger than current
-                    if u < x {
-                        a = u;
-                    } else {
-                        b = u;
-                    }
-                    if (fu <= fw) | (w == x) {
-                        v = w;
-                        w = u;
-                        fv = fw;
-                        fw = fu;
-                    } else if (fu <= fv) | (v == x) | (v == w) {
-                        v = u;
-                        fv = fu;
-                    }
-                } else {
-                    if u >= x {
-                        a = x;
-                    } else {
-                        b = x;
-                    }
-                    v = w;
-                    w = x;
-                    x = u;
-                    fv = fw;
-                    fw = fx;
-                    fx = fu;
-                }
-                iter += 1;
+    let (xa, xb, xc, _, fb, _, mut fcalls) = handle_bracket(&f, brack, maxiter)?;
+    let mut x = xb;
+    let mut w = xb;
+    let mut v = xb;
+    let mut fw = fb;
+    let mut fv = fb;
+    let mut fx = fb;
+    let (mut a, mut b) = if xa < xc { (xa, xc) } else { (xc, xa) };
+    let zero = T::zero();
+    let one = T::one();
+    let mut deltax = zero;
+    // small number that protects against trying to achieve fractional accuracy for a minimum that happens to be exactly zero
+    // see for more details Press, W., S.A. Teukolsky, W.T. Vetterling, and B.P. Flannery. Numerical Recipes in C. Cambridge University Press
+    let _mintol = T::epsilon();
+    let _cg = T::from_f32(0.381_966);
+    let one_half = T::from_f32(0.5);
+    // fix of scipy rat variable initialization question.
+    let mut rat = if x >= one_half * (a + b) {
+        a - x
+    } else {
+        b - x
+    } * _cg;
+    let two = T::from_f32(2.);
+    let mut iter = 0;
+    while iter < maxiter {
+        let tol1 = xtol * x.abs() + _mintol;
+        let tol2 = two * tol1;
+        let xmid = one_half * (a + b);
+        // check for convergence
+        if (x - xmid).abs() < (tol2 - one_half * (b - a)) {
+            break;
+        }
+        if deltax.abs() <= tol1 {
+            // do a golden section step
+            deltax = if x >= xmid { a - x } else { b - x };
+            rat = _cg * deltax;
+        } else {
+            // do a parabolic step
+            let tmp1 = (x - w) * (fx - fv);
+            let tmp2 = (x - v) * (fx - fw);
+            let mut p = (x - v) * tmp2 - (x - w) * tmp1;
+            let mut tmp2 = two * (tmp2 - tmp1);
+            if tmp2 > zero {
+                p = -p;
             }
-            if iter < maxiter {
-                Ok((x, fx, fcalls))
+            tmp2 = tmp2.abs();
+            let dx_temp = deltax;
+            deltax = rat;
+            // check parabolic fit
+            if (p > tmp2 * (a - x))
+                && (p < tmp2 * (b - x))
+                && (p.abs() < (one_half * tmp2 * dx_temp).abs())
+            {
+                rat = p * one / tmp2; // if parabolic step is useful.
+                let u = x + rat;
+                if ((u - a) < tol2) | ((b - u) < tol2) {
+                    if xmid >= x {
+                        rat = tol1;
+                    } else {
+                        rat = -tol1;
+                    }
+                }
             } else {
-                Err(TuutalError::Convergence {
-                    iterate: (x, a, b, fx, f(a), f(b), fcalls + 2),
-                    maxiter,
-                })
+                if x >= xmid {
+                    deltax = a - x; // if it's not do a golden section step
+                } else {
+                    deltax = b - x;
+                }
+                rat = _cg * deltax;
             }
         }
+        let u = if rat.abs() < tol1 {
+            // update by at least tol1
+            if rat >= zero {
+                x + tol1
+            } else {
+                x - tol1
+            }
+        } else {
+            x + rat
+        };
+
+        let fu = f(u);
+        fcalls += 1;
+        if fu > fx {
+            // if it's bigger than current
+            if u < x {
+                a = u;
+            } else {
+                b = u;
+            }
+            if (fu <= fw) | (w == x) {
+                v = w;
+                w = u;
+                fv = fw;
+                fw = fu;
+            } else if (fu <= fv) | (v == x) | (v == w) {
+                v = u;
+                fv = fu;
+            }
+        } else {
+            if u >= x {
+                a = x;
+            } else {
+                b = x;
+            }
+            v = w;
+            w = x;
+            x = u;
+            fv = fw;
+            fw = fx;
+            fx = fu;
+        }
+        iter += 1;
+    }
+    if iter < maxiter {
+        Ok((x, fx, fcalls))
+    } else {
+        Err(TuutalError::Convergence {
+            iterate: (x, a, b, fx, f(a), f(b), fcalls + 2),
+            maxiter,
+        })
     }
 }
 

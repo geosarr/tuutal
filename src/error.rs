@@ -45,6 +45,11 @@ pub enum TuutalError<X> {
     /// It hols the value.
     #[error("Nan value encoutered.")]
     Nan { x: X },
+    /// This error occurs when generally an encountered value does not have the desired properties.
+    ///
+    /// Its throws an explaining message.
+    #[error("Value error")]
+    Value { msg: String },
 }
 
 /// Handles types of errors occuring during a root finding algorithm.

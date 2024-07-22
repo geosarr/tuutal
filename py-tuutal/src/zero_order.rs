@@ -40,11 +40,11 @@ pub fn nelder_mead<'py>(
     fatol: f64,
     adaptive: bool,
     maxfev: Option<usize>,
-    simplex: Option<PyReadonlyArray2<f64>>,
+    initial_simplex: Option<PyReadonlyArray2<f64>>,
     bounds: Option<(f64, f64)>,
 ) -> PyResult<Bound<'py, PyArray1<f64>>> {
     let func = wrap_nd_func!(py, f);
-    let simplex = if let Some(sim) = simplex {
+    let initial_simplex = if let Some(sim) = initial_simplex {
         Some(sim.as_array().to_owned())
     } else {
         None
@@ -54,7 +54,7 @@ pub fn nelder_mead<'py>(
         &x0.as_array().to_owned(),
         maxfev,
         maxiter,
-        simplex,
+        initial_simplex,
         xatol,
         fatol,
         adaptive,
@@ -64,7 +64,7 @@ pub fn nelder_mead<'py>(
         Err(error) => match error {
             // Maybe better to throw also the current iterate and the number
             // actual function calls for this exception.
-            TuutalError::MaxFunCall { num: maxfev } => Err(PyRuntimeError::new_err(
+            TuutalError::MaxFunCall { num: _ } => Err(PyRuntimeError::new_err(
                 "Maximum number of function calls exceeded or will be exceeded.",
             )),
             TuutalError::EmptyDimension { x } => {
@@ -80,7 +80,14 @@ pub fn nelder_mead<'py>(
                 "Initial simplex shape = {:?}, but should be (N+1, N) with N = len(x0)",
                 (nrows, ncols)
             ))),
-            _ => Err(PyRuntimeError::new_err("Unknown error")), // Should never come this far.
+            TuutalError::Convergence {
+                iterate: x,
+                maxiter: _,
+            } => {
+                println!("Maximum number of iterations reached before convergence");
+                Ok(x.into_pyarray_bound(py))
+            }
+            err => Err(PyRuntimeError::new_err(err.to_string())), // Should never come this far.
         },
     }
 }
@@ -127,7 +134,7 @@ pub fn brentq(
             RootFindingError::Bracketing { a: x, b: y } => Err(PyValueError::new_err(format!(
                 "Bracketing condition f(a) * f(b) < 0, not satisfied by inputs a={x} and b={y}",
             ))),
-            _ => Err(PyRuntimeError::new_err("Unknown error")), // Should never come this far.
+            err => Err(PyRuntimeError::new_err(err.to_string())), // Should never come this far.
         },
     };
 }
@@ -160,11 +167,15 @@ pub fn brent_bounded(
             TuutalError::Convergence {
                 iterate: (xf, a, b, fx, fa, fb, fcalls),
                 maxiter: _,
-            } => Err(PyUserWarning::new_err(format!(
-                "Maximum number of iterations reached before convergence {:?}",
-                (xf, a, b, fx, fa, fb, fcalls)
-            ))),
-            _ => Err(PyRuntimeError::new_err("Unknown error")), // Should never come this far.
+            } => {
+                println!("Maximum number of iterations reached before convergence");
+                Ok((xf, fx, fcalls))
+            }
+            // Err(PyUserWarning::new_err(format!(
+            //     "Maximum number of iterations reached before convergence {:?}",
+            //     (xf, a, b, fx, fa, fb, fcalls)
+            // ))),
+            err => Err(PyRuntimeError::new_err(err.to_string())), // Should never come this far.
         },
     };
 }
@@ -180,7 +191,7 @@ pub fn brent_unbounded(
     tol: f64,
 ) -> PyResult<(f64, f64, usize)> {
     let func = wrap_scalar_func!(py, f);
-    return match brent_unbounded_rs(func, xa, xb, maxiter, tol) {
+    return match brent_unbounded_rs(func, Some(&[xa, xb]), maxiter, tol) {
         Ok(val) => Ok(val),
         Err(error) => match error {
             // Does not make a difference between bracketing
@@ -188,17 +199,17 @@ pub fn brent_unbounded(
             TuutalError::Convergence {
                 iterate: (xa, xb, xc, fa, fb, fc, fcalls),
                 maxiter: _,
-            } => Err(PyUserWarning::new_err(format!(
-                "Maximum number of iterations reached before convergence {:?}",
-                (xa, xb, xc, fa, fb, fc, fcalls)
-            ))),
+            } => {
+                println!("Maximum number of iterations reached before convergence");
+                Ok((xb, fb, fcalls))
+            }
             TuutalError::Bracketing {
                 iterate: (xa, xb, xc, fa, fb, fc, fcalls),
             } => Err(PyValueError::new_err(format!(
                 "Bracketing condition not satisfied by the final iterate: {:?}",
                 (xa, xb, xc, fa, fb, fc, fcalls)
             ))),
-            _ => Err(PyRuntimeError::new_err("Unknown error")), // Should never come this far.
+            err => Err(PyRuntimeError::new_err(err.to_string())), // Should never come this far.
         },
     };
 }
