@@ -3,11 +3,11 @@ use ndarray::{Array, Axis};
 use std::ops::Mul;
 
 use crate::{
-    brent_bounded, brent_unbounded, optimize, Bound, Iterable, MatrixType, Number, TuutalError,
-    VecType,
+    brent_bounded, brent_unbounded, optimize, set_default_value, Bound, Iterable, MatrixType,
+    Number, TuutalError, VecType,
 };
 
-use super::scalar::BrentOptResult;
+use super::{default_nb_iter, scalar::BrentOptResult};
 
 /// The Powell minimization algorithm.
 ///
@@ -18,7 +18,7 @@ use super::scalar::BrentOptResult;
 /// let f = |x: &VecType<f32>| (x[0] - 2.) * x[0] * (x[0] + 2.).powi(2);
 /// let x0 = &array![-1.];
 /// let x_star =
-///     powell::<_, (f32, f32), _>(f, &x0, None, 100, None, 1e-5, 1e-5, None)
+///     powell::<_, (f32, f32), _>(f, &x0, None, Some(100), None, 1e-5, 1e-5, None)
 ///     .unwrap();
 /// assert!((x_star[0] - 1.280776).abs() <= 1e-4);
 ///
@@ -26,7 +26,7 @@ use super::scalar::BrentOptResult;
 ///     |arr: &VecType<f32>| 100. * (arr[1] - arr[0].powi(2)).powi(2) + (1. - arr[0]).powi(2);
 /// let x0 = array![1., -0.5];
 /// let x_star =
-///     powell::<_, (f32, f32), _>(f, &x0, None, 100, None, 1e-5, 1e-5, None)
+///     powell::<_, (f32, f32), _>(f, &x0, None, Some(100), None, 1e-5, 1e-5, None)
 ///     .unwrap();
 /// assert!((x_star[0] - 1.).abs() <= 1e-5);
 /// assert!((x_star[1] - 1.).abs() <= 1e-5);
@@ -35,7 +35,7 @@ pub fn powell<A, B, F>(
     f: F,
     x0: &VecType<A>,
     maxfev: Option<usize>,
-    maxiter: usize,
+    maxiter: Option<usize>,
     direc: Option<MatrixType<A>>,
     xtol: A,
     ftol: A,
@@ -49,11 +49,12 @@ where
     B: Bound<A>,
     F: Fn(&VecType<A>) -> A,
 {
-    let iterates = PowellIterates::new(f, x0.clone(), maxfev, direc, xtol, ftol, bounds)?;
+    let (maxiter, maxfev) = default_nb_iter(x0.len(), maxiter, maxfev, 1000);
+    let iterates = PowellIterates::new(f, x0.clone(), Some(maxfev), direc, xtol, ftol, bounds)?;
     optimize(iterates, maxiter)
 }
 
-pub fn line_search_powell<A, F>(
+fn line_search_powell<A, F>(
     f: F,
     p: &VecType<A>,
     xi: &VecType<A>,
@@ -233,16 +234,13 @@ impl<F, A> PowellIterates<F, A> {
         F: Fn(&VecType<A>) -> A,
     {
         let dim = x0.len();
-        let maxfev = if let Some(max) = maxfev {
-            max
-        } else {
-            dim * 1000
-        };
+        let maxfev = set_default_value(maxfev, dim * 1000);
         if maxfev < x0.len() + 1 {
             return Err(TuutalError::MaxFunCall { num: maxfev });
         }
         let direc = if let Some(dir) = direc {
             // TODO check rank of the matrix.
+            println!("direc should be full rank.");
             dir
         } else {
             Array::eye(dim)

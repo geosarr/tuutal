@@ -189,14 +189,14 @@ where
             let (fa, fb, fc, feval) = (f(a), f(b), f(c), 3);
             let iterate = (a, b, c, fa, fb, fc, feval);
             if !is_bracket(a, b, c, fa, fb, fc) {
-                return Err(TuutalError::Bracketing { iterate: iterate });
+                return Err(TuutalError::Bracketing { iterate });
             }
             Ok(iterate)
         } else if br.len() == 6 {
             let (a, b, c, fa, fb, fc) = (br[0], br[1], br[2], br[3], br[4], br[5]);
             let iterate = (a, b, c, fa, fb, fc, 0);
             if !is_bracket(a, b, c, fa, fb, fc) {
-                return Err(TuutalError::Bracketing { iterate: iterate });
+                return Err(TuutalError::Bracketing { iterate });
             }
             Ok(iterate)
         } else {

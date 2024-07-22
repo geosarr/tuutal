@@ -28,3 +28,34 @@ impl<A> Bounds<A> {
         &self.upper
     }
 }
+
+pub(crate) fn default_nb_iter(
+    dim: usize,
+    maxiter: Option<usize>,
+    maxfev: Option<usize>,
+    def: usize,
+) -> (usize, usize) {
+    if maxiter.is_none() && maxfev.is_none() {
+        (dim * def, dim * def)
+    } else if maxiter.is_none() {
+        // Convert remaining Nones, to np.inf, unless the other is np.inf, in
+        // which case use the default to avoid unbounded iteration
+        let maxfev = maxfev.unwrap();
+        let maxiter = if maxfev == usize::MAX {
+            dim * def
+        } else {
+            usize::MAX
+        };
+        (maxiter, maxfev)
+    } else if maxfev.is_none() {
+        let maxiter = maxiter.unwrap();
+        let maxfev = if maxiter == usize::MAX {
+            dim * def
+        } else {
+            usize::MAX
+        };
+        (maxiter, maxfev)
+    } else {
+        (maxiter.unwrap(), maxfev.unwrap())
+    }
+}

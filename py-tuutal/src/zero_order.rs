@@ -35,12 +35,12 @@ pub fn nelder_mead<'py>(
     py: Python<'py>,
     f: PyObject,
     x0: PyReadonlyArray1<f64>,
-    maxiter: usize,
-    xatol: f64,
-    fatol: f64,
-    adaptive: bool,
+    maxiter: Option<usize>,
     maxfev: Option<usize>,
     initial_simplex: Option<PyReadonlyArray2<f64>>,
+    xatol: Option<f64>,
+    fatol: Option<f64>,
+    adaptive: Option<bool>,
     bounds: Option<(f64, f64)>,
 ) -> PyResult<Bound<'py, PyArray1<f64>>> {
     let func = wrap_nd_func!(py, f);
@@ -49,15 +49,22 @@ pub fn nelder_mead<'py>(
     } else {
         None
     };
+    let xtol = if let Some(tol) = xatol { tol } else { 1e-64 };
+    let ftol = if let Some(tol) = fatol { tol } else { 1e-64 };
+    let adap = if let Some(adap) = adaptive {
+        adap
+    } else {
+        false
+    };
     match nelder_mead_rs(
         func,
         &x0.as_array().to_owned(),
         maxfev,
         maxiter,
         initial_simplex,
-        xatol,
-        fatol,
-        adaptive,
+        xtol,
+        ftol,
+        adap,
         bounds,
     ) {
         Ok(value) => Ok(value.into_pyarray_bound(py)),

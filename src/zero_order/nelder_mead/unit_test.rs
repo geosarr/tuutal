@@ -119,7 +119,7 @@ mod test {
         let f = |arr: &VecType<f32>| arr.dot(arr);
         let x0 = array![-5., -5.];
         let x_star =
-            nelder_mead::<_, (f32, f32), _>(f, &x0, None, 100, None, 1e-5, 1e-5, true, None)
+            nelder_mead::<_, (f32, f32), _>(f, &x0, None, Some(100), None, 1e-5, 1e-5, true, None)
                 .unwrap();
         assert!(l2_diff(&x_star, &array![0., 0.]) < 2e-3);
         assert!(f(&x_star) < 1e-5);

@@ -4,8 +4,11 @@ use ndarray::{s, Axis};
 use num_traits::FromPrimitive;
 
 use crate::{
-    array, optimize, Array, Bound, Bounds, Iterable, MatrixType, Number, TuutalError, VecType,
+    array, optimize, set_default_value, Array, Bound, Bounds, Iterable, MatrixType, Number,
+    TuutalError, VecType,
 };
+
+use super::default_nb_iter;
 
 type SimplexParameterResult<A> = Result<(A, A, A, A), TuutalError<VecType<A>>>;
 
@@ -18,7 +21,7 @@ type SimplexParameterResult<A> = Result<(A, A, A, A), TuutalError<VecType<A>>>;
 /// let f = |x: &VecType<f32>| (x[0] - 2.) * x[0] * (x[0] + 2.).powi(2);
 /// let x0 = &array![-1.];
 /// let x_star =
-///     nelder_mead::<_, (f32, f32), _>(f, &x0, None, 100, None, 1e-5, 1e-5, true, None)
+///     nelder_mead::<_, (f32, f32), _>(f, &x0, None, Some(100), None, 1e-5, 1e-5, true, None)
 ///     .unwrap();
 /// assert!((-2. - x_star[0]).abs() <= 2e-4);
 ///
@@ -26,7 +29,7 @@ type SimplexParameterResult<A> = Result<(A, A, A, A), TuutalError<VecType<A>>>;
 ///     |arr: &VecType<f32>| 100. * (arr[1] - arr[0].powi(2)).powi(2) + (1. - arr[0]).powi(2);
 /// let x0 = array![1., -0.5];
 /// let x_star =
-///     nelder_mead::<_, (f32, f32), _>(f, &x0, None, 100, None, 1e-5, 1e-5, true, None)
+///     nelder_mead::<_, (f32, f32), _>(f, &x0, None, Some(100), None, 1e-5, 1e-5, true, None)
 ///     .unwrap();
 /// assert!((1. - x_star[0]).abs() <= 1e-3);
 /// assert!((1. - x_star[1]).abs() <= 2e-3);
@@ -35,7 +38,7 @@ pub fn nelder_mead<A, B, F>(
     f: F,
     x0: &VecType<A>,
     maxfev: Option<usize>,
-    maxiter: usize,
+    maxiter: Option<usize>,
     simplex: Option<MatrixType<A>>,
     xatol: A,
     fatol: A,
@@ -51,10 +54,11 @@ where
     B: Bound<A>,
     F: Fn(&VecType<A>) -> A,
 {
+    let (maxiter, maxfev) = default_nb_iter(x0.len(), maxiter, maxfev, 200);
     let iterates = NelderMeadIterates::new(
         f,
         x0.clone(),
-        maxfev,
+        Some(maxfev),
         simplex,
         xatol,
         fatol,
@@ -376,11 +380,7 @@ impl<F, A> NelderMeadIterates<F, A> {
         B: Bound<A>,
         F: Fn(&VecType<A>) -> A,
     {
-        let maxfev = if let Some(max) = maxfev {
-            max
-        } else {
-            x0.len() * 200
-        };
+        let maxfev = set_default_value(maxfev, x0.len() * 200);
         if maxfev < x0.len() + 1 {
             return Err(TuutalError::MaxFunCall { num: maxfev });
         }

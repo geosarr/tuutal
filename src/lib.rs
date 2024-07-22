@@ -61,3 +61,12 @@ pub(crate) fn optimize<X: Clone, I: Iterable<X>>(
     }
     Ok(iterable.iterate())
 }
+
+/// Default value setter for a function argument.
+pub(crate) fn set_default_value<T>(arg: Option<T>, value: T) -> T {
+    if let Some(val) = arg {
+        val
+    } else {
+        value
+    }
+}
