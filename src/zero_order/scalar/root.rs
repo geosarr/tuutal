@@ -70,10 +70,10 @@ where
     }
     let mut c = a;
     let mut mflag = true;
-    let two = T::from_f32(2.);
-    let three = T::from_f32(3.);
-    let four = T::from_f32(4.);
-    let delta = T::from_f32(10.).powi(-5);
+    let two = T::cast_from_f32(2.);
+    let three = T::cast_from_f32(3.);
+    let four = T::cast_from_f32(4.);
+    let delta = T::cast_from_f32(10.).powi(-5);
     let mut iter = 0;
     while (fb.abs() > eps)
         && (fa.abs() > eps)
@@ -170,8 +170,8 @@ where
     let (mut xpre, mut xcur) = (a, b);
     let zero = T::zero();
     let eps = T::epsilon();
-    let two = T::from_f32(2.);
-    let three = T::from_f32(3.);
+    let two = T::cast_from_f32(2.);
+    let three = T::cast_from_f32(3.);
     let (mut xblk, mut fblk, mut spre, mut scur) = (zero, zero, zero, zero);
     let mut fpre = f(xpre);
     let mut fcur = f(xcur);

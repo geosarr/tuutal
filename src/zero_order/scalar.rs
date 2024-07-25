@@ -73,8 +73,8 @@ where
     T: One + Float + Number,
     F: Fn(T) -> T,
 {
-    let two = T::from_f32(2.);
-    let _gold = (T::one() + T::from_f32(5.).sqrt()) / two; // golden ratio: (1.0+sqrt(5.0))/2.0
+    let two = T::cast_from_f32(2.);
+    let _gold = (T::one() + T::cast_from_f32(5.).sqrt()) / two; // golden ratio: (1.0+sqrt(5.0))/2.0
     let mut fa = f(xa);
     let mut fb = f(xb);
     let mut fcalls: usize = 2;
@@ -180,7 +180,7 @@ where
 {
     let zero = T::zero();
     let one = T::one();
-    let grow_limit = T::from_f32(110.);
+    let grow_limit = T::cast_from_f32(110.);
     if let Some(br) = brack {
         if br.len() == 2 {
             bracket(&f, br[0], br[1], grow_limit, maxiter)
@@ -269,15 +269,15 @@ where
     // small number that protects against trying to achieve fractional accuracy for a minimum that happens to be exactly zero
     // see for more details Press, W., S.A. Teukolsky, W.T. Vetterling, and B.P. Flannery. Numerical Recipes in C. Cambridge University Press
     let _mintol = T::epsilon();
-    let _cg = T::from_f32(0.381_966);
-    let one_half = T::from_f32(0.5);
+    let _cg = T::cast_from_f32(0.381_966);
+    let one_half = T::cast_from_f32(0.5);
     // fix of scipy rat variable initialization question.
     let mut rat = if x >= one_half * (a + b) {
         a - x
     } else {
         b - x
     } * _cg;
-    let two = T::from_f32(2.);
+    let two = T::cast_from_f32(2.);
     let mut iter = 0;
     while iter < maxiter {
         let tol1 = xtol * x.abs() + _mintol;
@@ -439,12 +439,12 @@ where
     }
 
     let zero = T::zero();
-    let two = T::from_f32(2.);
-    let three = T::from_f32(3.);
-    let one_half = T::from_f32(0.5);
+    let two = T::cast_from_f32(2.);
+    let three = T::cast_from_f32(3.);
+    let one_half = T::cast_from_f32(0.5);
 
     let sqrt_eps = T::epsilon().sqrt();
-    let golden_mean = one_half * (three - T::from_f32(5.0).sqrt());
+    let golden_mean = one_half * (three - T::cast_from_f32(5.0).sqrt());
     let (mut a, mut b) = (x1, x2);
     let mut fulc = a + golden_mean * (b - a);
     let (mut nfc, mut xf) = (fulc, fulc);

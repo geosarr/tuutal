@@ -41,7 +41,7 @@ where
     fn default() -> Self {
         Self::Armijo {
             gamma: T::exp_base(10, -3),
-            beta: T::from_f32(0.5),
+            beta: T::cast_from_f32(0.5),
         }
     }
 }
@@ -87,7 +87,7 @@ where
     /// ```
     pub fn new_powell_wolfe(gamma: T, beta: T) -> Self {
         assert!(
-            (T::zero() < gamma) && (gamma < T::from_f32(0.5)),
+            (T::zero() < gamma) && (gamma < T::cast_from_f32(0.5)),
             "gamma should satisfy: 0 < gamma < 1/2"
         );
         assert!(
@@ -189,7 +189,7 @@ where
 {
     let mut sigma_minus = A::one();
     let mut x_next = x + sigma_minus * neg_gradfx;
-    let one_half = A::from_f32(0.5);
+    let one_half = A::cast_from_f32(0.5);
     let fx = f(x);
     // The first if and else conditions guarantee having a segment [sigma_minus, sigma_plus]
     // such that sigma_minus satisfies the armijo condition and sigma_plus does not
@@ -199,7 +199,7 @@ where
                 return sigma_minus;
             }
             // Computation of sigma_plus
-            let two = A::from_f32(2.);
+            let two = A::cast_from_f32(2.);
             let mut sigma_plus = two;
             x_next = x + sigma_plus * neg_gradfx;
             while f(&x_next) - fx <= -sigma_plus * *params.gamma() * squared_norm_2_gradfx {
@@ -216,7 +216,7 @@ where
                 sigma_minus = one_half * sigma_minus;
                 x_next = x + sigma_minus * neg_gradfx;
             }
-            sigma_minus * (A::from_f32(2.)) // does not satisfy the Armijo rule
+            sigma_minus * (A::cast_from_f32(2.)) // does not satisfy the Armijo rule
         };
     x_next = x + sigma_minus * neg_gradfx;
     while gradf(&x_next).dot(neg_gradfx) < -*params.beta() * squared_norm_2_gradfx {

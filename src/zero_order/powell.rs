@@ -4,7 +4,7 @@ use std::ops::Mul;
 
 use crate::{
     brent_bounded, brent_unbounded, optimize, set_default_value, Bound, Iterable, MatrixType,
-    Number, TuutalError, VecType,
+    Number, Scalar, TuutalError, VecType,
 };
 
 use super::{default_nb_iter, scalar::BrentOptResult};
@@ -42,10 +42,7 @@ pub fn powell<A, B, F>(
     bounds: Option<B>,
 ) -> Result<VecType<A>, TuutalError<VecType<A>>>
 where
-    for<'b> A: Number
-        + std::fmt::Debug
-        + Mul<&'b VecType<A>, Output = VecType<A>>
-        + Mul<VecType<A>, Output = VecType<A>>,
+    A: Scalar<VecType<A>> + core::fmt::Debug,
     B: Bound<A>,
     F: Fn(&VecType<A>) -> A,
 {
@@ -84,14 +81,14 @@ where
             line_search_powell(f, p, xi, tol, None, None, fval, fcalls)
         } else if (bounds.0 != A::neg_infinity()) && (bounds.1 != A::infinity()) {
             // Bounded scalar minimization
-            let xatol = tol / A::from_f32(100.);
+            let xatol = tol / A::cast_from_f32(100.);
             return match brent_bounded(obj, bounds, xatol, 500) {
                 Err(error) => Err(error),
                 Ok((x, fx, fc)) => Ok((x, fx, fcalls + fc)),
             };
         } else {
             // One-sided bound minimization.
-            let xatol = tol / A::from_f32(100.);
+            let xatol = tol / A::cast_from_f32(100.);
             let bounds = (A::atan(bounds.0), A::atan(bounds.1));
             return match brent_bounded(|x| obj(A::tan(x)), bounds, xatol, 500) {
                 Err(error) => Err(error),
@@ -100,10 +97,11 @@ where
         }
     } else {
         // Non-bounded minimization
-        let (alpha_min, fret, fcalls) = match brent_unbounded(obj, None, 1000, A::from_f32(1e-6)) {
-            Err(error) => return Err(error),
-            Ok(val) => val,
-        };
+        let (alpha_min, fret, fcalls) =
+            match brent_unbounded(obj, None, 1000, A::cast_from_f32(1e-6)) {
+                Err(error) => return Err(error),
+                Ok(val) => val,
+            };
         Ok((alpha_min, fret, fcalls))
     }
 }
@@ -226,10 +224,7 @@ impl<F, A> PowellIterates<F, A> {
         bounds: Option<B>,
     ) -> Result<Self, TuutalError<VecType<A>>>
     where
-        for<'a> A: Number
-            + Mul<&'a VecType<A>, Output = VecType<A>>
-            + std::fmt::Debug
-            + Mul<VecType<A>, Output = VecType<A>>,
+        A: Scalar<VecType<A>> + core::fmt::Debug,
         B: Bound<A>,
         F: Fn(&VecType<A>) -> A,
     {
@@ -291,17 +286,14 @@ impl<F, A> PowellIterates<F, A> {
 
 impl<F, A> std::iter::Iterator for PowellIterates<F, A>
 where
-    for<'a> A: Number
-        + Mul<&'a VecType<A>, Output = VecType<A>>
-        + std::fmt::Debug
-        + Mul<VecType<A>, Output = VecType<A>>,
+    A: Scalar<VecType<A>> + core::fmt::Debug,
     F: Fn(&VecType<A>) -> A,
 {
     type Item = VecType<A>;
     fn next(&mut self) -> Option<Self::Item> {
         let zero = A::zero();
         let one = A::one();
-        let two = A::from_f32(2.);
+        let two = A::cast_from_f32(2.);
         let fx = self.fval;
         let mut bigind = 0;
         let mut delta = A::zero();
@@ -312,7 +304,7 @@ where
                 &self.f,
                 &self.x,
                 &direc1,
-                self.xtol * A::from_f32(100.),
+                self.xtol * A::cast_from_f32(100.),
                 self.lower.as_ref(),
                 self.upper.as_ref(),
                 self.fval,
@@ -375,7 +367,7 @@ where
                     &self.f,
                     &self.x,
                     &direc1,
-                    self.xtol * A::from_f32(100.),
+                    self.xtol * A::cast_from_f32(100.),
                     self.lower.as_ref(),
                     self.upper.as_ref(),
                     self.fval,
@@ -403,10 +395,7 @@ where
 
 impl<A, F> Iterable<VecType<A>> for PowellIterates<F, A>
 where
-    for<'a> A: Number
-        + Mul<&'a VecType<A>, Output = VecType<A>>
-        + std::fmt::Debug
-        + Mul<VecType<A>, Output = VecType<A>>,
+    A: Scalar<VecType<A>> + core::fmt::Debug,
     F: Fn(&VecType<A>) -> A,
 {
     fn nb_iter(&self) -> usize {
