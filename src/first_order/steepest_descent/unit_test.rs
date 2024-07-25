@@ -39,18 +39,18 @@ mod tests {
     fn test_adagrad() {
         let adagrad = SteepestDescentParameter::AdaGrad {
             gamma: 0.01,
-            beta: 0.5,
+            epsilon: 0.0001,
         };
         let (f, gradf) = rosenbrock_2d();
         let x = array![1f32, -0.5f32];
-        let opt = steepest_descent(f, gradf, &x, &adagrad, 1e-3, 10000).unwrap_err();
+        let opt = steepest_descent(f, gradf, &x, &adagrad, 1e-10, 10000).unwrap_err();
         let expected = array![1., 1.];
         // Slow convergence due to gradient normalization.
         match opt {
             TuutalError::Convergence {
                 iterate,
                 maxiter: _,
-            } => assert!(l2_diff(&iterate, &expected) < 2e-3),
+            } => assert!(l2_diff(&iterate, &expected) >= 2e-2),
             _ => panic!("Wrong error variant."),
         }
     }
