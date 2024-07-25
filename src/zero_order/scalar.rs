@@ -1,4 +1,3 @@
-use num_traits::{Float, One};
 pub mod root;
 use crate::Number;
 use crate::TuutalError;
@@ -70,7 +69,7 @@ type BracketResult<T> = Result<(T, T, T, T, T, T, usize), BrentOptError<T>>;
 /// ```
 pub fn bracket<T, F>(f: F, mut xa: T, mut xb: T, grow_limit: T, maxiter: usize) -> BracketResult<T>
 where
-    T: One + Float + Number,
+    T: Number,
     F: Fn(T) -> T,
 {
     let two = T::cast_from_f32(2.);

@@ -47,7 +47,9 @@ pub(crate) fn default_nb_iter(
             usize::MAX
         };
         (maxiter, maxfev)
-    } else if maxfev.is_none() {
+    } else if let Some(maxfcalls) = maxfev {
+        (maxiter.unwrap(), maxfcalls)
+    } else {
         let maxiter = maxiter.unwrap();
         let maxfev = if maxiter == usize::MAX {
             dim * def
@@ -55,7 +57,5 @@ pub(crate) fn default_nb_iter(
             usize::MAX
         };
         (maxiter, maxfev)
-    } else {
-        (maxiter.unwrap(), maxfev.unwrap())
     }
 }

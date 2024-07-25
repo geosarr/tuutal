@@ -1,6 +1,5 @@
 mod unit_test;
-use crate::{optimize, Iterable, Number, Scalar, TuutalError};
-use ndarray::linalg::Dot;
+use crate::{optimize, traits::VecDot, Iterable, Number, Scalar, TuutalError};
 use std::{
     fmt::Debug,
     ops::{Add, Neg},
@@ -158,7 +157,7 @@ fn armijo<F, A, X>(
 where
     A: Scalar<X>,
     F: Fn(&X) -> A,
-    X: Dot<X, Output = A> + Add<X, Output = X>,
+    X: VecDot<X, Output = A> + Add<X, Output = X>,
     for<'a> &'a X: Add<X, Output = X>,
 {
     let mut sigma = A::one();
@@ -184,7 +183,7 @@ where
     A: Scalar<X>,
     F: Fn(&X) -> A,
     G: Fn(&X) -> X,
-    X: Dot<X, Output = A> + Add<X, Output = X>,
+    X: VecDot<X, Output = A> + Add<X, Output = X>,
     for<'a> &'a X: Add<X, Output = X>,
 {
     let mut sigma_minus = A::one();
@@ -243,7 +242,7 @@ fn adagrad<F, A, X>(
 where
     A: Scalar<X> + std::fmt::Display,
     F: Fn(&X) -> A,
-    X: Dot<X, Output = A> + Add<X, Output = X>,
+    X: VecDot<X, Output = A> + Add<X, Output = X>,
     for<'a> &'a X: Add<X, Output = X>,
 {
     sum_squared_prev_grad = sum_squared_prev_grad + squared_norm_2_gradfx;
@@ -311,7 +310,7 @@ pub fn steepest_descent<X, F, G, A>(
 ) -> Result<X, TuutalError<X>>
 where
     A: Scalar<X> + std::fmt::Display,
-    X: Dot<X, Output = A> + Neg<Output = X> + Add<X, Output = X> + Clone,
+    X: VecDot<X, Output = A> + Neg<Output = X> + Add<X, Output = X> + Clone,
     for<'a> &'a X: Add<X, Output = X>,
     F: Fn(&X) -> A,
     G: Fn(&X) -> X,
@@ -344,7 +343,7 @@ where
     pub fn new(f: F, gradf: G, x: X, params: SteepestDescentParameter<A>, eps: A) -> Self
     where
         A: Scalar<X>,
-        X: Dot<X, Output = A> + Add<X, Output = X>,
+        X: VecDot<X, Output = A> + Add<X, Output = X>,
         for<'a> &'a X: Add<X, Output = X>,
     {
         Self {
@@ -383,7 +382,7 @@ where
 impl<X, F, G, A> std::iter::Iterator for SteepestDescentIterates<X, F, G, A>
 where
     A: Scalar<X> + std::fmt::Display,
-    X: Dot<X, Output = A> + Neg<Output = X> + Add<X, Output = X> + Clone,
+    X: VecDot<X, Output = A> + Neg<Output = X> + Add<X, Output = X> + Clone,
     for<'a> &'a X: Add<X, Output = X>,
     F: Fn(&X) -> A,
     G: Fn(&X) -> X,
@@ -431,7 +430,7 @@ where
 impl<X, F, G, A> Iterable<X> for SteepestDescentIterates<X, F, G, A>
 where
     A: Scalar<X> + std::fmt::Display,
-    X: Dot<X, Output = A> + Neg<Output = X> + Add<X, Output = X> + Clone,
+    X: VecDot<X, Output = A> + Neg<Output = X> + Add<X, Output = X> + Clone,
     for<'a> &'a X: Add<X, Output = X>,
     F: Fn(&X) -> A,
     G: Fn(&X) -> X,

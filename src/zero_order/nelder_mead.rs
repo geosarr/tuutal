@@ -413,7 +413,7 @@ impl<F, A> NelderMeadIterates<F, A> {
     where
         A: Number,
     {
-        return self.fstop() | self.xstop();
+        self.fstop() | self.xstop()
     }
 
     /// Test whether or not the objective function outputs are almost the same for all the vertices.

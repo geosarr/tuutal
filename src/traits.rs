@@ -1,4 +1,5 @@
 use crate::{s, Array, Bounds, MatrixType, VecType};
+use ndarray::linalg::Dot;
 use num_traits::{Float, FromPrimitive};
 use std::ops::Mul;
 
@@ -41,6 +42,22 @@ macro_rules! impl_scalar(
   }
 );
 impl_scalar!(f32, f64);
+
+/// Dot operation between vectors.
+pub trait VecDot<Rhs = Self> {
+    type Output;
+    fn dot(&self, rhs: &Rhs) -> Self::Output;
+}
+
+impl<T> VecDot<VecType<T>> for VecType<T>
+where
+    Self: Dot<Self, Output = T>,
+{
+    type Output = T;
+    fn dot(&self, rhs: &Self) -> Self::Output {
+        Dot::dot(self, rhs)
+    }
+}
 
 /// Implements an iterator counting the number of iterations done so far.
 pub trait Iterable<X>: std::iter::Iterator<Item = X> {
