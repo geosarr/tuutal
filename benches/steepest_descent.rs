@@ -3,7 +3,7 @@ extern crate test;
 extern crate tuutal;
 
 use test::Bencher;
-use tuutal::{s, steepest_descent, Array, VecType};
+use tuutal::{s, steepest_descent, Array, SteepestDescentParameter, VecType};
 
 fn rosenbrock_nd() -> (
     impl Fn(&VecType<f32>) -> f32,
@@ -36,11 +36,45 @@ fn rosenbrock_nd() -> (
 }
 
 #[bench]
-fn steepest_descent_bench(bench: &mut Bencher) {
+fn armijo_bench(bench: &mut Bencher) {
     let (f, gradf) = rosenbrock_nd();
     static LENGTH: usize = 500;
     let x0 = Array::from_vec(vec![0_f32; LENGTH]);
+    let params = SteepestDescentParameter::new_armijo(0.01, 0.01);
     bench.iter(|| {
-        let _solution = steepest_descent(&f, &gradf, &x0, &Default::default(), 1e-6, 1000);
+        let _solution = steepest_descent(&f, &gradf, &x0, &params, 1e-6, 1000);
+    });
+}
+
+#[bench]
+fn powell_wolfe_bench(bench: &mut Bencher) {
+    let (f, gradf) = rosenbrock_nd();
+    static LENGTH: usize = 500;
+    let x0 = Array::from_vec(vec![0_f32; LENGTH]);
+    let params = SteepestDescentParameter::new_powell_wolfe(0.01, 0.1);
+    bench.iter(|| {
+        let _solution = steepest_descent(&f, &gradf, &x0, &params, 1e-6, 1000);
+    });
+}
+
+#[bench]
+fn adagrad_bench(bench: &mut Bencher) {
+    let (f, gradf) = rosenbrock_nd();
+    static LENGTH: usize = 500;
+    let x0 = Array::from_vec(vec![0_f32; LENGTH]);
+    let params = SteepestDescentParameter::new_adagrad(0.1, 0.0001);
+    bench.iter(|| {
+        let _solution = steepest_descent(&f, &gradf, &x0, &params, 1e-6, 1000);
+    });
+}
+
+#[bench]
+fn adadelta_bench(bench: &mut Bencher) {
+    let (f, gradf) = rosenbrock_nd();
+    static LENGTH: usize = 500;
+    let x0 = Array::from_vec(vec![0_f32; LENGTH]);
+    let params = SteepestDescentParameter::new_adadelta(0.1, 0.0001);
+    bench.iter(|| {
+        let _solution = steepest_descent(&f, &gradf, &x0, &params, 1e-6, 1000);
     });
 }

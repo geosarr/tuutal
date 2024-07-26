@@ -1,7 +1,7 @@
 use crate::{s, Array, Bounds, MatrixType, VecType};
 use ndarray::linalg::Dot;
-use num_traits::{Float, FromPrimitive};
-use std::ops::Mul;
+use num_traits::{Float, FromPrimitive, Zero};
+use std::ops::{Add, Div, Mul, Sub};
 
 /// Complements num_traits float-pointing number Float trait by adding
 /// conversion from f32 and provides easy access to exponential numbers.
@@ -27,10 +27,18 @@ macro_rules! impl_default_value(
 );
 impl_default_value!(f32, f64);
 
-/// Implements scalar properties and matrices vs scalar operations.
+/// Implements scalar properties and matrices/vectors vs scalar operations.
 pub trait Scalar<X>
 where
-    for<'a> Self: Number + Mul<X, Output = X> + Mul<&'a X, Output = X>,
+    for<'a> Self: Number
+        + Add<X, Output = X>
+        + Sub<X, Output = X>
+        + Mul<X, Output = X>
+        + Div<X, Output = X>
+        + Add<&'a X, Output = X>
+        + Sub<&'a X, Output = X>
+        + Mul<&'a X, Output = X>
+        + Div<&'a X, Output = X>,
 {
 }
 macro_rules! impl_scalar(
@@ -56,6 +64,27 @@ where
     type Output = T;
     fn dot(&self, rhs: &Self) -> Self::Output {
         Dot::dot(self, rhs)
+    }
+}
+
+pub trait VecZero {
+    fn zero(size: usize) -> Self;
+}
+impl<T> VecZero for VecType<T>
+where
+    T: Zero + Clone,
+{
+    fn zero(size: usize) -> Self {
+        Array::from(vec![T::zero(); size])
+    }
+}
+
+pub trait VecInfo {
+    fn len(&self) -> usize;
+}
+impl<T> VecInfo for VecType<T> {
+    fn len(&self) -> usize {
+        VecType::len(self)
     }
 }
 

@@ -1,34 +1,12 @@
+use crate::{wrap_scalar_func_scalar, wrap_vec_func_scalar};
 use numpy::{IntoPyArray, PyArray1, PyReadonlyArray1, PyReadonlyArray2};
-use pyo3::exceptions::{PyRuntimeError, PyUserWarning, PyValueError};
+use pyo3::exceptions::{PyRuntimeError, PyValueError};
 use pyo3::prelude::*;
 use tuutal::{
     brent_bounded as brent_bounded_rs, brent_root as brent_root_rs,
     brent_unbounded as brent_unbounded_rs, brentq as brentq_rs, nelder_mead as nelder_mead_rs,
     RootFindingError, TuutalError, VecType,
 };
-macro_rules! wrap_scalar_func {
-    ($py:expr, $py_func:expr) => {
-        |x: f64| {
-            $py_func
-                .call1($py, (x,))
-                .expect("python objective function failed.")
-                .extract::<f64>($py)
-                .expect("python function should return a float-pointing number")
-        }
-    };
-}
-
-macro_rules! wrap_nd_func {
-    ($py:expr, $py_func:expr) => {
-        |x: &VecType<f64>| {
-            $py_func
-                .call1($py, (x.clone().into_pyarray_bound($py),))
-                .expect("python objective function failed.")
-                .extract::<f64>($py)
-                .expect("python function should return a float-pointing number")
-        }
-    };
-}
 
 #[pyfunction]
 pub fn nelder_mead<'py>(
@@ -43,28 +21,15 @@ pub fn nelder_mead<'py>(
     adaptive: Option<bool>,
     bounds: Option<(f64, f64)>,
 ) -> PyResult<Bound<'py, PyArray1<f64>>> {
-    let func = wrap_nd_func!(py, f);
-    let initial_simplex = if let Some(sim) = initial_simplex {
-        Some(sim.as_array().to_owned())
-    } else {
-        None
-    };
-    let xtol = if let Some(tol) = xatol { tol } else { 1e-64 };
-    let ftol = if let Some(tol) = fatol { tol } else { 1e-64 };
-    let adap = if let Some(adap) = adaptive {
-        adap
-    } else {
-        false
-    };
     match nelder_mead_rs(
-        func,
+        wrap_vec_func_scalar!(py, f),
         &x0.as_array().to_owned(),
         maxfev,
         maxiter,
-        initial_simplex,
-        xtol,
-        ftol,
-        adap,
+        initial_simplex.map(|sim| sim.as_array().to_owned()),
+        xatol.unwrap_or(1e-4),
+        fatol.unwrap_or(1e-4),
+        adaptive.unwrap_or(false),
         bounds,
     ) {
         Ok(value) => Ok(value.into_pyarray_bound(py)),
@@ -74,7 +39,7 @@ pub fn nelder_mead<'py>(
             TuutalError::MaxFunCall { num: _ } => Err(PyRuntimeError::new_err(
                 "Maximum number of function calls exceeded or will be exceeded.",
             )),
-            TuutalError::EmptyDimension { x } => {
+            TuutalError::EmptyDimension { x: _ } => {
                 Err(PyValueError::new_err("Empty initial input vector"))
             }
             TuutalError::BoundOrder { lower: _, upper: _ } => Err(PyValueError::new_err(
@@ -109,8 +74,8 @@ pub fn brent_root(
     rtol: f64,
     maxiter: usize,
 ) -> PyResult<(f64, f64, usize)> {
-    let func = wrap_scalar_func!(py, f);
-    return match brent_root_rs(func, a, b, xtol, rtol, maxiter) {
+    let func = wrap_scalar_func_scalar!(py, f);
+    match brent_root_rs(func, a, b, xtol, rtol, maxiter) {
         Ok(val) => Ok(val),
         Err(error) => match error {
             RootFindingError::Bracketing { a: x, b: y } => Err(PyValueError::new_err(format!(
@@ -120,7 +85,7 @@ pub fn brent_root(
                 "Interpolation cannot be performed since f(a) = f(b) for a={x} and b={y}",
             ))),
         },
-    };
+    }
 }
 
 /// Brent algorithm for scalar function root finding.
@@ -134,8 +99,8 @@ pub fn brentq(
     rtol: f64,
     maxiter: usize,
 ) -> PyResult<(f64, f64, usize)> {
-    let func = wrap_scalar_func!(py, f);
-    return match brentq_rs(func, a, b, xtol, rtol, maxiter) {
+    let func = wrap_scalar_func_scalar!(py, f);
+    match brentq_rs(func, a, b, xtol, rtol, maxiter) {
         Ok(val) => Ok(val),
         Err(error) => match error {
             RootFindingError::Bracketing { a: x, b: y } => Err(PyValueError::new_err(format!(
@@ -143,7 +108,7 @@ pub fn brentq(
             ))),
             err => Err(PyRuntimeError::new_err(err.to_string())), // Should never come this far.
         },
-    };
+    }
 }
 
 /// Brent bounded minimization algorithm for scalar function.
@@ -155,8 +120,8 @@ pub fn brent_bounded(
     xatol: f64,
     maxiter: usize,
 ) -> PyResult<(f64, f64, usize)> {
-    let func = wrap_scalar_func!(py, f);
-    return match brent_bounded_rs(func, bounds, xatol, maxiter) {
+    let func = wrap_scalar_func_scalar!(py, f);
+    match brent_bounded_rs(func, bounds, xatol, maxiter) {
         Ok(val) => Ok(val),
         Err(error) => match error {
             TuutalError::Infinity { x: _ } => {
@@ -172,7 +137,7 @@ pub fn brent_bounded(
                 (xf, a, b, fx, fa, fb, fcalls)
             ))),
             TuutalError::Convergence {
-                iterate: (xf, a, b, fx, fa, fb, fcalls),
+                iterate: (xf, _a, _b, fx, _fa, _fb, fcalls),
                 maxiter: _,
             } => {
                 println!("Maximum number of iterations reached before convergence");
@@ -184,7 +149,7 @@ pub fn brent_bounded(
             // ))),
             err => Err(PyRuntimeError::new_err(err.to_string())), // Should never come this far.
         },
-    };
+    }
 }
 
 /// Brent unbounded minimization algorithm for scalar function.
@@ -197,14 +162,14 @@ pub fn brent_unbounded(
     maxiter: usize,
     tol: f64,
 ) -> PyResult<(f64, f64, usize)> {
-    let func = wrap_scalar_func!(py, f);
-    return match brent_unbounded_rs(func, Some(&[xa, xb]), maxiter, tol) {
+    let func = wrap_scalar_func_scalar!(py, f);
+    match brent_unbounded_rs(func, Some(&[xa, xb]), maxiter, tol) {
         Ok(val) => Ok(val),
         Err(error) => match error {
             // Does not make a difference between bracketing
             // convergence and the actual brent algorithm convergence
             TuutalError::Convergence {
-                iterate: (xa, xb, xc, fa, fb, fc, fcalls),
+                iterate: (_xa, xb, _xc, _fa, fb, _fc, fcalls),
                 maxiter: _,
             } => {
                 println!("Maximum number of iterations reached before convergence");
@@ -218,5 +183,5 @@ pub fn brent_unbounded(
             ))),
             err => Err(PyRuntimeError::new_err(err.to_string())), // Should never come this far.
         },
-    };
+    }
 }

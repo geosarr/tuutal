@@ -66,7 +66,7 @@ quickcheck! {
             // let gradfx_next = gradf(&x_next);
             let neg_gradfx_prev = -gradf(&x_prev);
             let gradfx_d = neg_gradfx_prev.dot(&neg_gradfx_prev);
-            assert!(f(&x_next) <= f(&x_prev) - iterates.sigma() * gamma * gradfx_d);
+            assert!(f(&x_next) <= f(&x_prev) - iterates.sigma()[0] * gamma * gradfx_d);
             x_prev = x_next;
             iter += 1;
             if iter > 10 {
