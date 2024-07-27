@@ -6,7 +6,7 @@ use pyo3::types::PyDict;
 use tuutal::{
     brent_bounded as brent_bounded_rs, brent_root as brent_root_rs,
     brent_unbounded as brent_unbounded_rs, brentq as brentq_rs, nelder_mead as nelder_mead_rs,
-    RootFindingError, TuutalError, Array1,
+    Array1, RootFindingError, TuutalError,
 };
 
 #[pyfunction]
@@ -21,10 +21,10 @@ pub fn nelder_mead<'py>(
     fatol: Option<f64>,
     adaptive: Option<bool>,
     bounds: Option<(f64, f64)>,
-    kwds: Option<&Bound<'_, PyDict>>,
+    kwargs: Option<&Bound<'_, PyDict>>,
 ) -> PyResult<Bound<'py, PyArray1<f64>>> {
     match nelder_mead_rs(
-        wrap_vec_func_scalar!(py, f, kwds),
+        wrap_vec_func_scalar!(py, f, kwargs),
         &x0.as_array().to_owned(),
         maxfev,
         maxiter,
@@ -75,9 +75,9 @@ pub fn brent_root(
     xtol: f64,
     rtol: f64,
     maxiter: usize,
-    kwds: Option<&Bound<'_, PyDict>>,
+    kwargs: Option<&Bound<'_, PyDict>>,
 ) -> PyResult<(f64, f64, usize)> {
-    let func = wrap_scalar_func_scalar!(py, f, kwds);
+    let func = wrap_scalar_func_scalar!(py, f, kwargs);
     match brent_root_rs(func, a, b, xtol, rtol, maxiter) {
         Ok(val) => Ok(val),
         Err(error) => match error {
@@ -101,9 +101,9 @@ pub fn brentq(
     xtol: f64,
     rtol: f64,
     maxiter: usize,
-    kwds: Option<&Bound<'_, PyDict>>,
+    kwargs: Option<&Bound<'_, PyDict>>,
 ) -> PyResult<(f64, f64, usize)> {
-    let func = wrap_scalar_func_scalar!(py, f, kwds);
+    let func = wrap_scalar_func_scalar!(py, f, kwargs);
     match brentq_rs(func, a, b, xtol, rtol, maxiter) {
         Ok(val) => Ok(val),
         Err(error) => match error {
@@ -123,9 +123,9 @@ pub fn brent_bounded(
     bounds: (f64, f64),
     xatol: f64,
     maxiter: usize,
-    kwds: Option<&Bound<'_, PyDict>>,
+    kwargs: Option<&Bound<'_, PyDict>>,
 ) -> PyResult<(f64, f64, usize)> {
-    let func = wrap_scalar_func_scalar!(py, f, kwds);
+    let func = wrap_scalar_func_scalar!(py, f, kwargs);
     match brent_bounded_rs(func, bounds, xatol, maxiter) {
         Ok(val) => Ok(val),
         Err(error) => match error {
@@ -166,9 +166,9 @@ pub fn brent_unbounded(
     xb: f64,
     maxiter: usize,
     tol: f64,
-    kwds: Option<&Bound<'_, PyDict>>,
+    kwargs: Option<&Bound<'_, PyDict>>,
 ) -> PyResult<(f64, f64, usize)> {
-    let func = wrap_scalar_func_scalar!(py, f, kwds);
+    let func = wrap_scalar_func_scalar!(py, f, kwargs);
     match brent_unbounded_rs(func, Some(&[xa, xb]), maxiter, tol) {
         Ok(val) => Ok(val),
         Err(error) => match error {

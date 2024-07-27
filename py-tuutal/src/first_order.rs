@@ -1,9 +1,7 @@
 use crate::{wrap_vec_func_scalar, wrap_vec_func_vec};
-use numpy::{IntoPyArray, PyArray1, PyReadonlyArray1, PyReadonlyArray2};
-use pyo3::{
-    conversion::FromPyObjectBound, exceptions::PyRuntimeError, intern, prelude::*, types::PyDict,
-};
-use tuutal::{steepest_descent, SteepestDescentParameter, TuutalError, Array1};
+use numpy::{IntoPyArray, PyArray1, PyReadonlyArray1};
+use pyo3::{exceptions::PyRuntimeError, prelude::*, types::PyDict};
+use tuutal::{steepest_descent, Array1, SteepestDescentParameter, TuutalError};
 
 macro_rules! first_order_method {
     ($method:ident, $name:ident) => {
@@ -17,12 +15,12 @@ macro_rules! first_order_method {
             beta: f64,
             gtol: f64,
             maxiter: Option<usize>,
-            f_kwds: Option<&Bound<'_, PyDict>>,
-            g_kwds: Option<&Bound<'_, PyDict>>,
+            f_kwargs: Option<&Bound<'_, PyDict>>,
+            g_kwargs: Option<&Bound<'_, PyDict>>,
         ) -> PyResult<Bound<'py, PyArray1<f64>>> {
             match steepest_descent(
-                wrap_vec_func_scalar!(py, f, f_kwds),
-                wrap_vec_func_vec!(py, g, g_kwds),
+                wrap_vec_func_scalar!(py, f, f_kwargs),
+                wrap_vec_func_vec!(py, g, g_kwargs),
                 &x0.as_array().to_owned(),
                 &SteepestDescentParameter::$name(gamma, beta),
                 gtol,
