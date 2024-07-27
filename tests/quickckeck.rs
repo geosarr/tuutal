@@ -4,14 +4,14 @@ extern crate quickcheck;
 extern crate tuutal;
 
 use core::cmp::min;
-use tuutal::{s, Array, SteepestDescentIterates, SteepestDescentParameter, Array1};
+use tuutal::{s, Array1, SteepestDescentIterates, SteepestDescentParameter};
 
 quickcheck! {
     fn descent_armijo(xs: Vec<f32>) -> bool {
         // When the objective function f is regular enough (e.g. continously differentiable),
         // then sequence (f(x_k))_k of output values of the iterates (x_k)_k, provided by the Armijo
         // rule, should be strictly decreasing.
-        let arr = Array::from_vec(xs);
+        let arr = Array1::from(xs);
         if arr.is_empty() {
             return true;
         }
@@ -20,7 +20,7 @@ quickcheck! {
             // To avoid arbitrarily large or missing numbers.
             return true;
         }
-        let eye = Array::ones(arr.shape()[0]);
+        let eye = Array1::ones(arr.shape()[0]);
         let f = |x: &Array1<f32>| 0.5 * x.dot(x).powi(2) + eye.dot(x) + 1.;
         let gradf = |x: &Array1<f32>| 2. * x * x.dot(x) + eye.clone();
         let param = SteepestDescentParameter::new_armijo(0.01, 0.5);
@@ -45,7 +45,7 @@ quickcheck! {
         //          inf_{t>=0} f(x_k + t * d_k) > - infinity
         // then the generated steps decrease the objective function value by at least a value proportional
         // to the norm of the gradient at the iterates.
-        let arr = Array::from_vec(xs);
+        let arr = Array1::from(xs);
         if arr.is_empty() {
             return true;
         }

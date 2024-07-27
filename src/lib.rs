@@ -6,7 +6,7 @@
 //! [scipy]: https://docs.scipy.org/doc/scipy-1.13.1/reference/optimize.html
 //! [ndarr]: https://crates.io/crates/ndarray
 
-// #![no_std]
+#![no_std]
 
 /// A set of error handling objects.
 pub mod error;
@@ -24,7 +24,7 @@ mod utils;
 
 pub use error::{RootFindingError, TuutalError};
 pub use first_order::{steepest_descent, SteepestDescentIterates, SteepestDescentParameter};
-pub use ndarray::{array, s, Array, Array1, Array2};
+pub use ndarray::{array, s, Array1, Array2};
 
 #[allow(unused)]
 pub(crate) use utils::{is_between, l2_diff};
