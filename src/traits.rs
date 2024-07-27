@@ -1,7 +1,7 @@
 use crate::{s, Array, Array1, Array2, Bounds};
+use core::ops::{Add, Div, Mul, Sub};
 use ndarray::linalg::Dot;
 use num_traits::{Float, FromPrimitive, Zero};
-use std::ops::{Add, Div, Mul, Sub};
 
 /// Complements num_traits float-pointing number Float trait by adding
 /// conversion from f32 and provides easy access to exponential numbers.
@@ -89,7 +89,7 @@ impl<T> VecInfo for Array1<T> {
 }
 
 /// Implements an iterator counting the number of iterations done so far.
-pub trait Iterable<X>: std::iter::Iterator<Item = X> {
+pub trait Iterable<X>: core::iter::Iterator<Item = X> {
     /// Number of iterations done so far.
     fn nb_iter(&self) -> usize;
     /// Current iterate.

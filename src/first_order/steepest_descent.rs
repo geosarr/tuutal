@@ -12,7 +12,7 @@ use adadelta::adadelta;
 use adagrad::adagrad;
 use armijo::armijo;
 use powell_wolfe::powell_wolfe;
-use std::{
+use core::{
     fmt::Debug,
     ops::{Add, Div, Mul, Neg},
 };
@@ -227,7 +227,7 @@ pub fn steepest_descent<X, F, G, A>(
     maxiter: usize,
 ) -> Result<X, TuutalError<X>>
 where
-    A: Scalar<X> + std::fmt::Display,
+    A: Scalar<X> + core::fmt::Display,
     X: VecDot<X, Output = A> + Neg<Output = X> + Add<X, Output = X> + Clone + VecInfo + VecZero,
     for<'a> &'a X: Add<X, Output = X> + Mul<&'a X, Output = X> + Mul<X, Output = X>,
     F: Fn(&X) -> A,
@@ -315,9 +315,9 @@ where
     }
 }
 
-impl<X, F, G, A> std::iter::Iterator for SteepestDescentIterates<X, F, G, A>
+impl<X, F, G, A> core::iter::Iterator for SteepestDescentIterates<X, F, G, A>
 where
-    A: Scalar<X> + std::fmt::Display,
+    A: Scalar<X> + core::fmt::Display,
     X: VecDot<X, Output = A> + Neg<Output = X> + Add<X, Output = X> + Clone,
     for<'a> &'a X: Add<X, Output = X> + Mul<&'a X, Output = X> + Mul<X, Output = X>,
     F: Fn(&X) -> A,
@@ -381,7 +381,7 @@ where
 
 impl<X, F, G, A> Iterable<X> for SteepestDescentIterates<X, F, G, A>
 where
-    A: Scalar<X> + std::fmt::Display,
+    A: Scalar<X> + core::fmt::Display,
     X: VecDot<X, Output = A> + Neg<Output = X> + Add<X, Output = X> + Clone,
     for<'a> &'a X: Add<X, Output = X> + Mul<&'a X, Output = X> + Mul<X, Output = X>,
     F: Fn(&X) -> A,

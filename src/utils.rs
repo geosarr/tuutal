@@ -2,8 +2,8 @@ use crate::Array1;
 
 pub(crate) fn l2_diff<T>(a: &Array1<T>, b: &Array1<T>) -> T
 where
-    for<'a> &'a T: std::ops::Sub<Output = T>,
-    T: num_traits::Float + std::ops::Mul<Output = T> + std::iter::Sum,
+    for<'a> &'a T: core::ops::Sub<Output = T>,
+    T: num_traits::Float + core::ops::Mul<Output = T> + core::iter::Sum,
 {
     a.iter()
         .zip(b)

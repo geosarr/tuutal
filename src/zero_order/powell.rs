@@ -1,10 +1,10 @@
 mod unit_test;
+use core::ops::Mul;
 use ndarray::{Array, Axis};
-use std::ops::Mul;
 
 use crate::{
-    brent_bounded, brent_unbounded, optimize, Bound, Iterable, Array2, Number, Scalar,
-    TuutalError, Array1,
+    brent_bounded, brent_unbounded, optimize, Array1, Array2, Bound, Iterable, Number, Scalar,
+    TuutalError,
 };
 
 use super::{default_nb_iter, scalar::BrentOptResult};
@@ -62,7 +62,7 @@ fn line_search_powell<A, F>(
     fcalls: usize,
 ) -> BrentOptResult<A>
 where
-    for<'a> A: Number + Mul<&'a Array1<A>, Output = Array1<A>> + std::fmt::Debug,
+    for<'a> A: Number + Mul<&'a Array1<A>, Output = Array1<A>> + core::fmt::Debug,
     F: Fn(&Array1<A>) -> A,
 {
     let obj = |alpha: A| {
@@ -113,7 +113,7 @@ fn line_for_search<A>(
     upper_bound: &Array1<A>,
 ) -> Result<(A, A), TuutalError<Array1<A>>>
 where
-    A: Number + std::fmt::Debug,
+    A: Number + core::fmt::Debug,
 {
     let (non_zero, _) = split_in_two(|i| d[*i] != A::zero(), d.len());
     let d = d.select(Axis(0), &non_zero);
@@ -181,7 +181,7 @@ fn min_max<A>(
     max: bool,
 ) -> A
 where
-    A: Number + std::fmt::Debug,
+    A: Number + core::fmt::Debug,
 {
     match m1 {
         Err(_) => m2.unwrap(), // Assumes that m1 and m2 are not both Err.
@@ -284,7 +284,7 @@ impl<F, A> PowellIterates<F, A> {
     }
 }
 
-impl<F, A> std::iter::Iterator for PowellIterates<F, A>
+impl<F, A> core::iter::Iterator for PowellIterates<F, A>
 where
     A: Scalar<Array1<A>> + core::fmt::Debug,
     F: Fn(&Array1<A>) -> A,

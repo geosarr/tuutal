@@ -3,7 +3,7 @@
 extern crate quickcheck;
 extern crate tuutal;
 
-use std::cmp::min;
+use core::cmp::min;
 use tuutal::{s, Array, SteepestDescentIterates, SteepestDescentParameter, Array1};
 
 quickcheck! {

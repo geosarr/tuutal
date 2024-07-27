@@ -6,17 +6,18 @@
 //! [scipy]: https://docs.scipy.org/doc/scipy-1.13.1/reference/optimize.html
 //! [ndarr]: https://crates.io/crates/ndarray
 
+// #![no_std]
+
 /// A set of error handling objects.
 pub mod error;
 
+/// A set of tools to optimize functions when gradient computation is provided.
+pub mod first_order;
 /// ["Black-Box Optimization"][bbox] module, it provides tools to optimize
 /// functions when only function evaluation is permitted.
 ///
 /// [bbox]: https://en.wikipedia.org/wiki/Derivative-free_optimization
 pub mod zero_order;
-
-/// A set of tools to optimize functions when gradient computation is provided.
-pub mod first_order;
 
 mod traits;
 mod utils;

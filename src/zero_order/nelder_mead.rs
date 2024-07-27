@@ -1,4 +1,4 @@
-use std::ops::Mul;
+use core::ops::Mul;
 mod unit_test;
 use ndarray::{s, Axis};
 
@@ -510,7 +510,7 @@ impl<F, A> NelderMeadIterates<F, A> {
     }
 }
 
-impl<F, A> std::iter::Iterator for NelderMeadIterates<F, A>
+impl<F, A> core::iter::Iterator for NelderMeadIterates<F, A>
 where
     F: Fn(&Array1<A>) -> A,
     A: Scalar<Array1<A>>,
