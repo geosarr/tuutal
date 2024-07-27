@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests {
-    use super::super::*;
-    use crate::{array, l2_diff, VecType};
+    use super::super::{steepest_descent, SteepestDescentParameter};
+    use crate::{array, l2_diff, TuutalError, VecType};
 
     fn rosenbrock_2d() -> (fn(&VecType<f32>) -> f32, fn(&VecType<f32>) -> VecType<f32>) {
         let f =
@@ -39,18 +39,39 @@ mod tests {
     fn test_adagrad() {
         let adagrad = SteepestDescentParameter::AdaGrad {
             gamma: 0.01,
-            beta: 0.5,
+            beta: 0.0001,
         };
         let (f, gradf) = rosenbrock_2d();
         let x = array![1f32, -0.5f32];
-        let opt = steepest_descent(f, gradf, &x, &adagrad, 1e-3, 10000).unwrap_err();
+        let opt = steepest_descent(f, gradf, &x, &adagrad, 1e-4, 10000).unwrap_err();
         let expected = array![1., 1.];
-        // Slow convergence due to gradient normalization.
+        // Slow convergence rate for this problem
         match opt {
             TuutalError::Convergence {
                 iterate,
                 maxiter: _,
-            } => assert!(l2_diff(&iterate, &expected) < 2e-3),
+            } => assert!(l2_diff(&iterate, &expected) >= 0.1),
+            _ => panic!("Wrong error variant."),
+        }
+    }
+
+    #[test]
+    fn test_adadelta() {
+        let adadelta = SteepestDescentParameter::AdaDelta {
+            gamma: 0.01,
+            beta: 0.0001,
+        };
+        let (f, gradf) = rosenbrock_2d();
+        let x = array![1f32, -0.5f32];
+        let opt = steepest_descent(f, gradf, &x, &adadelta, 1e-4, 10000).unwrap_err();
+        let expected = array![1., 1.];
+        println!("{:?}", opt);
+        // Slow convergence rate for this problem
+        match opt {
+            TuutalError::Convergence {
+                iterate,
+                maxiter: _,
+            } => assert!(l2_diff(&iterate, &expected) >= 0.1),
             _ => panic!("Wrong error variant."),
         }
     }

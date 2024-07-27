@@ -11,3 +11,13 @@ where
         .sum::<T>()
         .sqrt()
 }
+
+pub(crate) fn is_between<T>(arr: &VecType<T>, lower: &VecType<T>, upper: &VecType<T>) -> bool
+where
+    for<'a> &'a T: PartialOrd,
+{
+    arr.iter()
+        .zip(lower)
+        .zip(upper)
+        .all(|((x, l), u)| (l <= x) && (x <= u))
+}

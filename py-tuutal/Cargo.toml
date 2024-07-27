@@ -1,0 +1,13 @@
+[package]
+name = "py-tuutal"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "tuutal"
+crate-type = ["cdylib"]
+
+[dependencies]
+pyo3 = "0.21.0"
+numpy = "0.21.0"
+tuutal = { path = "../" } # local rust tuutal crate

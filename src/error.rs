@@ -14,7 +14,7 @@ pub enum TuutalError<X> {
     #[error(
         "No valid solution was found before the maximum number of iterations `{maxiter:?}` was reached."
     )]
-    Convergence { iterate: X, maxiter: String },
+    Convergence { iterate: X, maxiter: usize },
     /// This error occurs when at least one lower bound is greater than an upper bound.
     ///
     /// It holds the bounds values.
@@ -35,15 +35,30 @@ pub enum TuutalError<X> {
     /// It holds the maximum number of function evaluation.
     #[error("Maximum function evaluation number is `{num:?}`")]
     MaxFunCall { num: usize },
+    /// This error occurs when an undesired infinite value is encountered.
+    ///
+    /// It hols the value.
+    #[error("Infinity value encoutered.")]
+    Infinity { x: X },
+    /// This error occurs when an undesired nan value is encountered.
+    ///
+    /// It hols the value.
+    #[error("Nan value encoutered.")]
+    Nan { x: X },
+    /// This error occurs when generally an encountered value does not have the desired properties.
+    ///
+    /// Its throws an explaining message.
+    #[error("Value error")]
+    Value { msg: String },
 }
 
 /// Handles types of errors occuring during a root finding algorithm.
 #[derive(Error, Debug, PartialEq)]
-pub enum RootFindingError {
+pub enum RootFindingError<X> {
     /// This error occurs when a mandatory condition f(a) * f(b) < 0 is not satisfied.
     #[error("The inputs a = {a:?} and b = {b:?} do not satisfy f(a) * f(b) < 0.")]
-    Bracketing { a: String, b: String },
+    Bracketing { a: X, b: X },
     /// This error occurs when interpolation cannot be done using inputs a and b with the same output.
     #[error("Cannot interpolate, a = {a:?} and b = {b:?} have the same output f(a) = f(b).")]
-    Interpolation { a: String, b: String },
+    Interpolation { a: X, b: X },
 }

@@ -1,38 +1,70 @@
-#[cfg(test)]
+mod adadelta;
+mod adagrad;
+mod armijo;
+mod powell_wolfe;
 mod unit_test;
-use crate::{optimize, Iterable, Number, Scalar, TuutalError};
-use ndarray::linalg::Dot;
+use crate::{
+    optimize,
+    traits::{VecDot, VecInfo, VecZero},
+    Iterable, Number, Scalar, TuutalError,
+};
+use adadelta::adadelta;
+use adagrad::adagrad;
+use armijo::armijo;
+use powell_wolfe::powell_wolfe;
 use std::{
     fmt::Debug,
-    ops::{Add, Neg},
+    ops::{Add, Div, Mul, Neg},
 };
 
 /// Parameters used in the steepest descent method.
 ///
-/// The **gamma** parameter represents a magnitude of decrease in the objective function
-/// in the negative gradient direction. The **beta** parameter controls:
-/// - step size magnitude of decrease in the Armijo / AdaGrad rule.
-/// - descent steepness for the Powell Wolfe strategy.
+/// The **gamma** parameter represents the:
+/// - magnitude of decrease in the objective function in the negative gradient direction for Armijo and Powell rules.
+/// - general step size for AdaGrad rule.
+/// - magnitude of decay for previous gradients in the AdaDelta algorithms.
 ///
-/// Use methods [`new_armijo`], [`new_powell_wolfe`] and [`new_adagrad`] to construct these parameters.
+/// The **beta** parameter controls the:
+/// - step size magnitude of decrease in the Armijo rule algorithm.
+/// - descent steepness for the Powell Wolfe strategy.
+/// - tolerance factor of the update denominator in the AdaGrad and AdaDelta algorithms.
+///
+/// Use methods [`new_armijo`], [`new_powell_wolfe`], [`new_adagrad`] and [`new_adadelta`], to construct these parameters.
 ///
 /// [`new_armijo`]: SteepestDescentParameter::new_armijo
 ///
 /// [`new_powell_wolfe`]: SteepestDescentParameter::new_powell_wolfe
 ///
 /// [`new_adagrad`]: SteepestDescentParameter::new_adagrad
+///
+/// [`new_adadelta`]: SteepestDescentParameter::new_adadelta
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum SteepestDescentParameter<T> {
     /// Armijo rule step size rule
+    ///
+    /// At each step t, the step size is a scalar.
     Armijo { gamma: T, beta: T },
     /// Powell Wolfe step size rule
+    ///
+    /// At each step t, the step size is a scalar.
     PowellWolfe { gamma: T, beta: T },
     /// Adaptive Gradient step size rule
     ///
-    /// This variant uses Armijo rule (and the same parameters) to update the step size before normalizing it
-    /// with the square root of the sum of the previous gradients L<sub>2</sub> norm, i.e at step each step t:
-    /// - adagrad_step_size<sub>t</sub> = armijo_step_size<sub>t</sub> / ( sum<sub>k <= t</sub> ||g<sub>k</sub>||<sup>2</sup> ).sqrt()
+    /// At each step t, the vector step size is given by:
+    /// - adagrad_step_size<sub>t</sub> = gamma / ( sum<sub>k <= t</sub> g<sub>k</sub><sup>2</sup> + beta ).sqrt()
+    ///   where g<sub>k</sub> is the gradient at step k.
     AdaGrad { gamma: T, beta: T },
+    /// Adaptive Learning Rate DELTA step size rule
+    ///
+    /// At each step t, the vector step size is given by:
+    /// - adadelta_step_size<sub>t</sub> = RMS(x<sub>t-1</sub>) / RMS(g<sub>t</sub>)
+    ///   where :
+    ///     - x<sub>k</sub> is the update at step k
+    ///     - g<sub>k</sub> is the gradient of x<sub>k</sub>
+    ///     - RMS(v<sub>t</sub>) = ( sum<sub>k <= t</sub> E[v<sup>2</sup>]<sub>k</sub> + beta ).sqrt()
+    ///     - E[v<sup>2</sup>]<sub>k</sub> = gamma * E[v<sup>2</sup>]<sub>k-1</sub> + (1 - gamma) * v<sub>k</sub><sup>2</sup>
+    ///       with E[v<sup>2</sup>]<sub>0</sub> = 0
+    AdaDelta { gamma: T, beta: T },
 }
 
 impl<T> Default for SteepestDescentParameter<T>
@@ -42,7 +74,7 @@ where
     fn default() -> Self {
         Self::Armijo {
             gamma: T::exp_base(10, -3),
-            beta: T::from_f32(0.5),
+            beta: T::cast_from_f32(0.5),
         }
     }
 }
@@ -57,11 +89,10 @@ where
     /// When one of these conditions is not satisfied:
     /// - 0. < gamma < 1.
     /// - 0. < beta < 1.
+    ///
     /// ```
     /// use tuutal::SteepestDescentParameter;
     /// let param = SteepestDescentParameter::new_armijo(0.1f32, 0.016f32);
-    /// assert_eq!(param.gamma(), &0.1);
-    /// assert_eq!(param.beta(), &0.016);
     /// ```
     pub fn new_armijo(gamma: T, beta: T) -> Self {
         assert!(
@@ -80,15 +111,14 @@ where
     /// When one of these conditions is not satisfied:
     /// - 0. < gamma < 1/2
     /// - gamma < beta < 1.
+    ///
     /// ```
     /// use tuutal::SteepestDescentParameter;
     /// let param = SteepestDescentParameter::new_powell_wolfe(0.01f32, 0.75f32);
-    /// assert_eq!(param.gamma(), &0.01);
-    /// assert_eq!(param.beta(), &0.75);
     /// ```
     pub fn new_powell_wolfe(gamma: T, beta: T) -> Self {
         assert!(
-            (T::zero() < gamma) && (gamma < T::from_f32(0.5)),
+            (T::zero() < gamma) && (gamma < T::cast_from_f32(0.5)),
             "gamma should satisfy: 0 < gamma < 1/2"
         );
         assert!(
@@ -97,158 +127,44 @@ where
         );
         Self::PowellWolfe { gamma, beta }
     }
-    /// Constructs an Armijo rule parameter.
+    /// Constructs an AdaGrad rule parameter.
+    ///
+    /// # Panics
+    /// When one of these conditions is not satisfied:
+    /// - 0. < gamma.
+    /// - beta > 0.
+    /// ```
+    /// use tuutal::SteepestDescentParameter;
+    /// let param = SteepestDescentParameter::new_adagrad(0.01f32, 0.0001);
+    /// ```
+    pub fn new_adagrad(gamma: T, beta: T) -> Self {
+        assert!(gamma > T::zero());
+        assert!(beta > T::zero());
+        Self::AdaGrad { gamma, beta }
+    }
+    /// Constructs an AdaDelta rule parameter.
     ///
     /// # Panics
     /// When one of these conditions is not satisfied:
     /// - 0. < gamma < 1.
-    /// - 0. < beta < 1.
+    /// - beta > 0.
     /// ```
     /// use tuutal::SteepestDescentParameter;
-    /// let param = SteepestDescentParameter::new_adagrad(0.2f32, 0.8f32);
-    /// assert_eq!(param.gamma(), &0.2);
-    /// assert_eq!(param.beta(), &0.8);
+    /// let param = SteepestDescentParameter::new_adadelta(0.2f32, 0.04);
     /// ```
-    pub fn new_adagrad(gamma: T, beta: T) -> Self {
-        assert!(
-            (T::zero() < gamma) && (gamma < T::one()),
-            "gamma should satisfy: 0. < gamma < 1."
-        );
-        assert!(
-            (T::zero() < beta) && (beta < T::one()),
-            "beta should satisfy: 0. < beta < 1."
-        );
-        Self::AdaGrad { gamma, beta }
+    pub fn new_adadelta(gamma: T, beta: T) -> Self {
+        assert!(gamma > T::zero() && gamma < T::one());
+        assert!(beta > T::zero());
+        Self::AdaDelta { gamma, beta }
     }
-    /// Gets the gamma parameter.
-    /// ```
-    /// use tuutal::SteepestDescentParameter;
-    /// let param = SteepestDescentParameter::new_powell_wolfe(0.49f32, 0.65f32);
-    /// assert_eq!(param.gamma(), &0.49);
-    /// ```
-    pub fn gamma(&self) -> &T {
+    fn step_size_is_scalar(&self) -> bool {
         match self {
-            Self::Armijo { gamma: g, beta: _ } => g,
-            Self::PowellWolfe { gamma: g, beta: _ } => g,
-            Self::AdaGrad { gamma: g, beta: _ } => g,
+            Self::Armijo { gamma: _, beta: _ } => true,
+            Self::PowellWolfe { gamma: _, beta: _ } => true,
+            Self::AdaGrad { gamma: _, beta: _ } => false,
+            Self::AdaDelta { gamma: _, beta: _ } => false,
         }
     }
-    /// Gets the beta parameter.
-    /// ```
-    /// use tuutal::SteepestDescentParameter;
-    /// let param = SteepestDescentParameter::new_powell_wolfe(0.23f32, 0.34f32);
-    /// assert_eq!(param.beta(), &0.34);
-    /// ```
-    pub fn beta(&self) -> &T {
-        match self {
-            Self::Armijo { gamma: _, beta: b } => b,
-            Self::PowellWolfe { gamma: _, beta: b } => b,
-            Self::AdaGrad { gamma: _, beta: b } => b,
-        }
-    }
-}
-
-/// Computes a step size using the Armijo method.
-fn armijo<F, A, X>(
-    f: &F,
-    x: &X,
-    neg_gradfx: &X,
-    squared_norm_2_gradfx: A,
-    params: &SteepestDescentParameter<A>,
-) -> A
-where
-    A: Scalar<X>,
-    F: Fn(&X) -> A,
-    X: Dot<X, Output = A> + Add<X, Output = X>,
-    for<'a> &'a X: Add<X, Output = X>,
-{
-    let mut sigma = A::one();
-    let mut x_next = x + sigma * neg_gradfx;
-    let fx = f(x);
-    while f(&x_next) - fx > -sigma * *params.gamma() * squared_norm_2_gradfx {
-        sigma = *params.beta() * sigma;
-        x_next = x + sigma * neg_gradfx;
-    }
-    sigma
-}
-
-/// Computes a step size using the Powell Wolfe method.
-fn powell_wolfe<F, G, A, X>(
-    f: &F,
-    gradf: &G,
-    x: &X,
-    neg_gradfx: &X,
-    squared_norm_2_gradfx: A,
-    params: &SteepestDescentParameter<A>,
-) -> A
-where
-    A: Scalar<X>,
-    F: Fn(&X) -> A,
-    G: Fn(&X) -> X,
-    X: Dot<X, Output = A> + Add<X, Output = X>,
-    for<'a> &'a X: Add<X, Output = X>,
-{
-    let mut sigma_minus = A::one();
-    let mut x_next = x + sigma_minus * neg_gradfx;
-    let one_half = A::from_f32(0.5);
-    let fx = f(x);
-    // The first if and else conditions guarantee having a segment [sigma_minus, sigma_plus]
-    // such that sigma_minus satisfies the armijo condition and sigma_plus does not
-    let mut sigma_plus =
-        if f(&x_next) - fx <= -sigma_minus * *params.gamma() * squared_norm_2_gradfx {
-            if gradf(&x_next).dot(neg_gradfx) >= -*params.beta() * squared_norm_2_gradfx {
-                return sigma_minus;
-            }
-            // Computation of sigma_plus
-            let two = A::from_f32(2.);
-            let mut sigma_plus = two;
-            x_next = x + sigma_plus * neg_gradfx;
-            while f(&x_next) - fx <= -sigma_plus * *params.gamma() * squared_norm_2_gradfx {
-                sigma_plus = two * sigma_plus;
-                x_next = x + sigma_plus * neg_gradfx;
-            }
-            // At this stage sigma_plus is the smallest 2^k that does not satisfy the Armijo rule
-            sigma_minus = sigma_plus * one_half; // it satisfies the Armijo rule
-            sigma_plus
-        } else {
-            sigma_minus = one_half;
-            x_next = x + sigma_minus * neg_gradfx;
-            while f(&x_next) - fx > -sigma_minus * *params.gamma() * squared_norm_2_gradfx {
-                sigma_minus = one_half * sigma_minus;
-                x_next = x + sigma_minus * neg_gradfx;
-            }
-            sigma_minus * (A::from_f32(2.)) // does not satisfy the Armijo rule
-        };
-    x_next = x + sigma_minus * neg_gradfx;
-    while gradf(&x_next).dot(neg_gradfx) < -*params.beta() * squared_norm_2_gradfx {
-        let sigma = (sigma_minus + sigma_plus) * one_half;
-        x_next = x + sigma * neg_gradfx;
-        if f(&x_next) - fx <= -sigma * *params.gamma() * squared_norm_2_gradfx {
-            sigma_minus = sigma;
-        } else {
-            sigma_plus = sigma;
-        }
-    }
-    sigma_minus
-}
-
-/// Computes a step size using the Adaptive Gradient method.
-fn adagrad<F, A, X>(
-    f: &F,
-    x: &X,
-    neg_gradfx: &X,
-    mut sum_squared_prev_grad: A,
-    squared_norm_2_gradfx: A,
-    params: &SteepestDescentParameter<A>,
-) -> A
-where
-    A: Scalar<X> + std::fmt::Display,
-    F: Fn(&X) -> A,
-    X: Dot<X, Output = A> + Add<X, Output = X>,
-    for<'a> &'a X: Add<X, Output = X>,
-{
-    sum_squared_prev_grad = sum_squared_prev_grad + squared_norm_2_gradfx;
-    armijo(f, x, neg_gradfx, squared_norm_2_gradfx, params) / sum_squared_prev_grad.sqrt()
 }
 
 /// The steepest descent algorithm using some step size method.
@@ -312,10 +228,11 @@ pub fn steepest_descent<X, F, G, A>(
 ) -> Result<X, TuutalError<X>>
 where
     A: Scalar<X> + std::fmt::Display,
-    X: Dot<X, Output = A> + Neg<Output = X> + Add<X, Output = X> + Clone,
-    for<'a> &'a X: Add<X, Output = X>,
+    X: VecDot<X, Output = A> + Neg<Output = X> + Add<X, Output = X> + Clone + VecInfo + VecZero,
+    for<'a> &'a X: Add<X, Output = X> + Mul<&'a X, Output = X> + Mul<X, Output = X>,
     F: Fn(&X) -> A,
     G: Fn(&X) -> X,
+    X: FromIterator<A> + IntoIterator<Item = A> + Clone + Div<X, Output = X> + Mul<X, Output = X>,
 {
     let iterates = SteepestDescentIterates::new(f, gradf, x0.clone(), *params, eps);
     optimize(iterates, maxiter)
@@ -333,8 +250,9 @@ where
     x: X,
     eps: A,
     iter: usize,
-    sigma: A,
-    sum_squared_grad: A,
+    sigma: X,
+    accum_grad: X,
+    accum_update: X,
 }
 
 impl<X, F, G, A> SteepestDescentIterates<X, F, G, A>
@@ -345,18 +263,34 @@ where
     pub fn new(f: F, gradf: G, x: X, params: SteepestDescentParameter<A>, eps: A) -> Self
     where
         A: Scalar<X>,
-        X: Dot<X, Output = A> + Add<X, Output = X>,
+        X: VecDot<X, Output = A> + Add<X, Output = X> + VecZero + VecInfo,
         for<'a> &'a X: Add<X, Output = X>,
     {
-        Self {
-            f,
-            gradf,
-            params,
-            x,
-            iter: 0,
-            eps,
-            sigma: A::zero(),
-            sum_squared_grad: A::epsilon(), // to avoid division by zero for initial guess near stationnary points.
+        let dim = x.len();
+        if params.step_size_is_scalar() {
+            Self {
+                f,
+                gradf,
+                params,
+                x,
+                iter: 0,
+                eps,
+                sigma: X::zero(1),
+                accum_grad: X::zero(1),
+                accum_update: X::zero(1),
+            }
+        } else {
+            Self {
+                f,
+                gradf,
+                params,
+                x,
+                iter: 0,
+                eps,
+                sigma: X::zero(dim),
+                accum_grad: X::zero(dim),
+                accum_update: X::zero(dim),
+            }
         }
     }
     /// Reference to the objective function
@@ -376,7 +310,7 @@ where
         &self.x
     }
     /// Current step size.
-    pub fn sigma(&self) -> &A {
+    pub fn sigma(&self) -> &X {
         &self.sigma
     }
 }
@@ -384,10 +318,11 @@ where
 impl<X, F, G, A> std::iter::Iterator for SteepestDescentIterates<X, F, G, A>
 where
     A: Scalar<X> + std::fmt::Display,
-    X: Dot<X, Output = A> + Neg<Output = X> + Add<X, Output = X> + Clone,
-    for<'a> &'a X: Add<X, Output = X>,
+    X: VecDot<X, Output = A> + Neg<Output = X> + Add<X, Output = X> + Clone,
+    for<'a> &'a X: Add<X, Output = X> + Mul<&'a X, Output = X> + Mul<X, Output = X>,
     F: Fn(&X) -> A,
     G: Fn(&X) -> X,
+    X: FromIterator<A> + IntoIterator<Item = A> + Clone + Div<X, Output = X> + Mul<X, Output = X>,
 {
     type Item = X;
     fn next(&mut self) -> Option<Self::Item> {
@@ -398,31 +333,46 @@ where
             None
         } else {
             self.sigma = match self.params {
-                SteepestDescentParameter::Armijo { gamma: _, beta: _ } => armijo(
+                SteepestDescentParameter::Armijo { gamma, beta } => [armijo(
                     self.obj(),
                     &self.x,
                     &neg_gradfx,
                     squared_norm_2_gradfx,
-                    &self.params,
-                ),
-                SteepestDescentParameter::PowellWolfe { gamma: _, beta: _ } => powell_wolfe(
+                    gamma,
+                    beta,
+                )]
+                .into_iter()
+                .collect::<X>(),
+                SteepestDescentParameter::PowellWolfe { gamma, beta } => [powell_wolfe(
                     self.obj(),
                     self.grad_obj(),
                     &self.x,
                     &neg_gradfx,
                     squared_norm_2_gradfx,
-                    &self.params,
-                ),
-                SteepestDescentParameter::AdaGrad { gamma: _, beta: _ } => adagrad(
-                    self.obj(),
-                    &self.x,
-                    &neg_gradfx,
-                    self.sum_squared_grad,
-                    squared_norm_2_gradfx,
-                    &self.params,
-                ),
+                    gamma,
+                    beta,
+                )]
+                .into_iter()
+                .collect::<X>(),
+                SteepestDescentParameter::AdaGrad { gamma, beta } => {
+                    let squared_grad = &neg_gradfx * &neg_gradfx;
+                    adagrad(&mut self.accum_grad, squared_grad, gamma, beta)
+                }
+                SteepestDescentParameter::AdaDelta { gamma, beta } => {
+                    let squared_grad = &neg_gradfx * &neg_gradfx;
+                    let step_size = adadelta(
+                        &mut self.accum_grad,
+                        &self.accum_update,
+                        &squared_grad,
+                        gamma,
+                        beta,
+                    );
+                    self.accum_update = gamma * &self.accum_update
+                        + (A::one() - gamma) * (&step_size * &step_size) * squared_grad;
+                    step_size
+                }
             };
-            self.x = &self.x + self.sigma * neg_gradfx;
+            self.x = &self.x + &self.sigma * neg_gradfx;
             self.iter += 1;
             Some(self.x.clone())
         }
@@ -432,10 +382,11 @@ where
 impl<X, F, G, A> Iterable<X> for SteepestDescentIterates<X, F, G, A>
 where
     A: Scalar<X> + std::fmt::Display,
-    X: Dot<X, Output = A> + Neg<Output = X> + Add<X, Output = X> + Clone,
-    for<'a> &'a X: Add<X, Output = X>,
+    X: VecDot<X, Output = A> + Neg<Output = X> + Add<X, Output = X> + Clone,
+    for<'a> &'a X: Add<X, Output = X> + Mul<&'a X, Output = X> + Mul<X, Output = X>,
     F: Fn(&X) -> A,
     G: Fn(&X) -> X,
+    X: FromIterator<A> + IntoIterator<Item = A> + Clone + Div<X, Output = X> + Mul<X, Output = X>,
 {
     fn nb_iter(&self) -> usize {
         self.nb_iter()

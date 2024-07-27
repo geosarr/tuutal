@@ -30,10 +30,13 @@ use ndarray::{
 };
 
 #[allow(unused)]
-pub(crate) use utils::l2_diff;
+pub(crate) use utils::{is_between, l2_diff};
 
 pub use traits::{Bound, Iterable, Number, Scalar};
-pub use zero_order::{bracket, brent_opt, brent_root, nelder_mead, NelderMeadIterates};
+pub use zero_order::{
+    bracket, brent_bounded, brent_root, brent_unbounded, brentq, nelder_mead, powell,
+    NelderMeadIterates, PowellIterates,
+};
 
 pub(crate) use zero_order::Bounds;
 
@@ -52,9 +55,18 @@ pub(crate) fn optimize<X: Clone, I: Iterable<X>>(
         if iterable.nb_iter() > maxiter {
             return Err(TuutalError::Convergence {
                 iterate: x,
-                maxiter: maxiter.to_string(),
+                maxiter,
             });
         }
     }
     Ok(iterable.iterate())
+}
+
+/// Default value setter for a function argument.
+pub(crate) fn set_default_value<T>(arg: Option<T>, value: T) -> T {
+    if let Some(val) = arg {
+        val
+    } else {
+        value
+    }
 }
