@@ -12,7 +12,11 @@ on:
       - dev
     tags:
       - "*"
+    paths:
+      - py-tuutal/**
   pull_request:
+    paths:
+      - py-tuutal/**
   workflow_dispatch:
 
 permissions:
