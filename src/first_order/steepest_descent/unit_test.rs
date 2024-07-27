@@ -1,16 +1,16 @@
 #[cfg(test)]
 mod tests {
     use super::super::{steepest_descent, SteepestDescentParameter};
-    use crate::{array, l2_diff, TuutalError, Array1};
+    use crate::{l2_diff, Array1, TuutalError};
 
     fn rosenbrock_2d() -> (fn(&Array1<f32>) -> f32, fn(&Array1<f32>) -> Array1<f32>) {
         let f =
             |arr: &Array1<f32>| 100. * (arr[1] - arr[0].powi(2)).powi(2) + (1. - arr[0]).powi(2);
         let gradf = |arr: &Array1<f32>| {
-            array![
+            Array1::from_iter([
                 -400. * arr[0] * (arr[1] - arr[0].powi(2)) - 2. * (1. - arr[0]),
-                200. * (arr[1] - arr[0].powi(2))
-            ]
+                200. * (arr[1] - arr[0].powi(2)),
+            ])
         };
         return (f, gradf);
     }
@@ -19,9 +19,9 @@ mod tests {
     fn test_armijo() {
         let armijo = SteepestDescentParameter::new_armijo(0.01, 0.5);
         let (f, gradf) = rosenbrock_2d();
-        let x = array![1f32, -0.5f32];
+        let x = Array1::from_iter([1f32, -0.5f32]);
         let opt = steepest_descent(f, gradf, &x, &armijo, 1e-4, 10000).unwrap();
-        let expected = array![1., 1.];
+        let expected = Array1::from_iter([1., 1.]);
         assert!(l2_diff(&opt, &expected) < 1e-3);
     }
 
@@ -29,9 +29,9 @@ mod tests {
     fn test_powell_wolfe() {
         let powolf = SteepestDescentParameter::new_powell_wolfe(0.0001, 0.9);
         let (f, gradf) = rosenbrock_2d();
-        let x = array![1f32, -0.5f32];
+        let x = Array1::from_iter([1f32, -0.5f32]);
         let opt = steepest_descent(f, gradf, &x, &powolf, 1e-4, 10000).unwrap();
-        let expected = array![1., 1.];
+        let expected = Array1::from_iter([1., 1.]);
         assert!(l2_diff(&opt, &expected) < 1e-3);
     }
 
@@ -42,9 +42,9 @@ mod tests {
             beta: 0.0001,
         };
         let (f, gradf) = rosenbrock_2d();
-        let x = array![1f32, -0.5f32];
+        let x = Array1::from_iter([1f32, -0.5f32]);
         let opt = steepest_descent(f, gradf, &x, &adagrad, 1e-4, 10000).unwrap_err();
-        let expected = array![1., 1.];
+        let expected = Array1::from_iter([1., 1.]);
         // Slow convergence rate for this problem
         match opt {
             TuutalError::Convergence {
@@ -62,10 +62,10 @@ mod tests {
             beta: 0.0001,
         };
         let (f, gradf) = rosenbrock_2d();
-        let x = array![1f32, -0.5f32];
+        let x = Array1::from_iter([1f32, -0.5f32]);
         let opt = steepest_descent(f, gradf, &x, &adadelta, 1e-4, 10000).unwrap_err();
-        let expected = array![1., 1.];
-        println!("{:?}", opt);
+        let expected = Array1::from_iter([1., 1.]);
+        // println!("{:?}", opt);
         // Slow convergence rate for this problem
         match opt {
             TuutalError::Convergence {
@@ -85,15 +85,15 @@ mod tests {
                 + (1. - x[1]).powi(2)
         };
         let gradf = |x: &Array1<f32>| {
-            2. * array![
+            2. * Array1::from_iter([
                 200. * x[0] * (x[0].powi(2) - x[1]) + (x[0] - 1.),
                 100. * (x[1] - x[0].powi(2) + 2. * x[1] * (x[1].powi(2) - x[2])) + (x[1] - 1.),
-                100. * (x[2] - x[1].powi(2))
-            ]
+                100. * (x[2] - x[1].powi(2)),
+            ])
         };
-        let x = array![10f32, -15., -100.];
+        let x = Array1::from_iter([10f32, -15., -100.]);
         let opt = steepest_descent(f, gradf, &x, &powolf, 1e-4, 10000).unwrap();
-        let expected = array![1., 1., 1.];
+        let expected = Array1::from_iter([1., 1., 1.]);
         assert!(l2_diff(&opt, &expected) < 1e-3);
     }
 }

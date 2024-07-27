@@ -1,10 +1,9 @@
 use core::ops::Mul;
 mod unit_test;
 use ndarray::{s, Axis};
-
-use crate::{
-    array, optimize, Array, Array1, Array2, Bound, Bounds, Iterable, Number, Scalar, TuutalError,
-};
+extern crate alloc;
+use crate::{optimize, Array1, Array2, Bound, Bounds, Iterable, Number, Scalar, TuutalError};
+use alloc::{string::ToString, vec::Vec};
 
 use super::default_nb_iter;
 
@@ -83,7 +82,9 @@ where
             A::cast_from_f32(0.5),
         )
     } else {
-        return Err(TuutalError::EmptyDimension { x: array![] });
+        return Err(TuutalError::EmptyDimension {
+            x: Array1::from(Vec::new()),
+        });
     };
     Ok((rho, chi, psi, sigma))
 }
@@ -154,7 +155,7 @@ where
     A: Number,
 {
     let dim = x0.len();
-    let mut simplex = Array::zeros((dim + 1, dim));
+    let mut simplex = Array2::zeros((dim + 1, dim));
     if let Some(lb) = lower_bound {
         if let Some(ub) = upper_bound {
             for k in 0..dim {
@@ -296,7 +297,7 @@ where
         if lower_bound.iter().zip(&x0).any(|(l, x)| l > x)
             | x0.iter().zip(&upper_bound).any(|(x, u)| x > u)
         {
-            println!("\nInitial guess is not within the specified bounds");
+            // println!("\nInitial guess is not within the specified bounds");
         }
         initial_simplex_with_bounds(
             clamp_vec(x0, &lower_bound, &upper_bound),
@@ -376,7 +377,7 @@ impl<F, A> NelderMeadIterates<F, A> {
         let (rho, chi, psi, sigma) = simplex_parameters(&x0, adaptive)?;
         let (sim, bounds) = clamp(x0, bounds, initial_simplex)?.into_tuple();
         let fcalls = 0;
-        let mut fsim = Array::from(vec![A::zero(); sim.nrows()]);
+        let mut fsim = Array1::from_elem(sim.nrows(), A::zero());
         let fcalls = map_scalar_vector_mut(&mut fsim, &sim, &f, fcalls, maxfev)?;
         let sorted_indices = argsort_by(&fsim, |x: &A, y: &A| x.partial_cmp(y).unwrap());
         let fsim = fsim.select(Axis(0), &sorted_indices);

@@ -1,6 +1,8 @@
 mod unit_test;
 use core::ops::Mul;
 use ndarray::{Array, Axis};
+extern crate alloc;
+use alloc::vec::Vec;
 
 use crate::{
     brent_bounded, brent_unbounded, optimize, Array1, Array2, Bound, Iterable, Number, Scalar,
@@ -235,7 +237,7 @@ impl<F, A> PowellIterates<F, A> {
         }
         let direc = if let Some(dir) = direc {
             // TODO check rank of the matrix.
-            println!("direc should be full rank.");
+            // println!("direc should be full rank.");
             dir
         } else {
             Array::eye(dim)

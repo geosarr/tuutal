@@ -1,23 +1,27 @@
 #[cfg(test)]
 mod tests {
     use super::super::*;
-    use crate::{array, is_between, l2_diff, Array};
+    use crate::{is_between, l2_diff, Array1};
 
     #[test]
     fn test_split_in_two() {
-        let vec: Vec<f64> = vec![4., 2., 5., 8., 3., 1., -10.];
-        let func = |i: &usize| (&vec[*i] % 2.) == 0.;
+        let vec = [4., 2., 5., 8., 3., 1., -10.];
+        let func = |i: &usize| (vec[*i] % 2.) == 0.;
         let (res, no_res) = split_in_two(func, vec.len());
-        assert_eq!(vec![0, 1, 3, 6], res);
-        assert_eq!(vec![2, 4, 5], no_res);
+        let mut expected_res = Vec::new();
+        expected_res.extend_from_slice(&[0, 1, 3, 6]);
+        let mut expected_no_res = Vec::new();
+        expected_no_res.extend_from_slice(&[2, 4, 5]);
+        assert_eq!(expected_res, res);
+        assert_eq!(expected_no_res, no_res);
     }
 
     #[test]
     fn test_min_max() {
-        let d = Array::from(vec![1., -1., 2., 3., -2.]);
-        let x = Array::from(vec![1., -1., 0., 0., -1.]);
-        let lb = Array::from(vec![-2.; 5]);
-        let ub = Array::from(vec![2.; 5]);
+        let d = Array1::from_iter([1., -1., 2., 3., -2.]);
+        let x = Array1::from_iter([1., -1., 0., 0., -1.]);
+        let lb = Array1::from_iter([-2.; 5]);
+        let ub = Array1::from_iter([2.; 5]);
         let (lmin, lmax) = line_for_search(&x, &d, &lb, &ub).unwrap();
         let xmin: Array1<f64> = &x + lmin * &d;
         let xhalf: Array1<f64> = &x + ((lmin + lmax) / 2.) * &d;
@@ -32,8 +36,8 @@ mod tests {
     #[test]
     fn test_line_search_powell() {
         let f = |arr: &Array1<f32>| arr.dot(arr);
-        let x0 = array![0., 1.];
-        let d = array![-1., 1.];
+        let x0 = Array1::from_iter([0., 1.]);
+        let d = Array1::from_iter([-1., 1.]);
         let (alpha, fval, fcalls) =
             line_search_powell(f, &x0, &d, 1e-3, None, None, f(&x0), 0).unwrap();
         assert!((alpha + 0.5).abs() < 1e-6);
@@ -44,10 +48,10 @@ mod tests {
     #[test]
     fn test_powell() {
         let f = |arr: &Array1<f32>| arr.dot(arr);
-        let x0 = array![-5., -5.];
+        let x0 = Array1::from_iter([-5., -5.]);
         let x_star =
             powell::<_, (f32, f32), _>(f, &x0, None, Some(100), None, 1e-5, 1e-5, None).unwrap();
-        assert!(l2_diff(&x_star, &array![0., 0.]) < 1e-6);
+        assert!(l2_diff(&x_star, &Array1::from_iter([0., 0.])) < 1e-6);
         assert!(f(&x_star) < 1e-6);
     }
 }

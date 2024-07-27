@@ -1,4 +1,6 @@
-use crate::{s, Array, Array1, Array2, Bounds};
+use crate::{s, Array1, Array2, Bounds};
+extern crate alloc;
+use alloc::vec::Vec;
 use core::ops::{Add, Div, Mul, Sub};
 use ndarray::linalg::Dot;
 use num_traits::{Float, FromPrimitive, Zero};
@@ -75,7 +77,7 @@ where
     T: Zero + Clone,
 {
     fn zero(size: usize) -> Self {
-        Array::from(vec![T::zero(); size])
+        Array1::from_elem(size, T::zero())
     }
 }
 
@@ -106,10 +108,10 @@ where
     T: Copy,
 {
     fn lower(&self, dim: usize) -> Array1<T> {
-        Array::from(vec![self.0; dim])
+        Array1::from_elem(dim, self.0)
     }
     fn upper(&self, dim: usize) -> Array1<T> {
-        Array::from(vec![self.1; dim])
+        Array1::from_elem(dim, self.1)
     }
 }
 impl<T> Bound<T> for Vec<(T, T)>
