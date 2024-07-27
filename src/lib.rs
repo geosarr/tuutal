@@ -23,11 +23,7 @@ mod utils;
 
 pub use error::{RootFindingError, TuutalError};
 pub use first_order::{steepest_descent, SteepestDescentIterates, SteepestDescentParameter};
-pub use ndarray::{array, s, Array};
-use ndarray::{
-    prelude::{ArrayBase, Dim},
-    OwnedRepr,
-};
+pub use ndarray::{array, s, Array, Array1, Array2};
 
 #[allow(unused)]
 pub(crate) use utils::{is_between, l2_diff};
@@ -39,12 +35,6 @@ pub use zero_order::{
 };
 
 pub(crate) use zero_order::Bounds;
-
-/// Two dimensional owned matrix
-pub type MatrixType<T> = ArrayBase<OwnedRepr<T>, Dim<[usize; 2]>>;
-
-/// One dimensional owned matrix or vector.
-pub type VecType<T> = ArrayBase<OwnedRepr<T>, Dim<[usize; 1]>>;
 
 /// Generic function to launch an optimization routine when intermediate iterates are not needed.
 pub(crate) fn optimize<X: Clone, I: Iterable<X>>(
@@ -60,13 +50,4 @@ pub(crate) fn optimize<X: Clone, I: Iterable<X>>(
         }
     }
     Ok(iterable.iterate())
-}
-
-/// Default value setter for a function argument.
-pub(crate) fn set_default_value<T>(arg: Option<T>, value: T) -> T {
-    if let Some(val) = arg {
-        val
-    } else {
-        value
-    }
 }

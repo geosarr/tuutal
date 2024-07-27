@@ -19,9 +19,9 @@ mod tests {
         let lb = Array::from(vec![-2.; 5]);
         let ub = Array::from(vec![2.; 5]);
         let (lmin, lmax) = line_for_search(&x, &d, &lb, &ub).unwrap();
-        let xmin: VecType<f64> = &x + lmin * &d;
-        let xhalf: VecType<f64> = &x + ((lmin + lmax) / 2.) * &d;
-        let xmax: VecType<f64> = &x + lmax * &d;
+        let xmin: Array1<f64> = &x + lmin * &d;
+        let xhalf: Array1<f64> = &x + ((lmin + lmax) / 2.) * &d;
+        let xmax: Array1<f64> = &x + lmax * &d;
 
         // Testing whether or not the vectors x + l * d are between lb and ub component-wise.
         assert!(is_between(&xmin, &lb, &ub));
@@ -31,7 +31,7 @@ mod tests {
 
     #[test]
     fn test_line_search_powell() {
-        let f = |arr: &VecType<f32>| arr.dot(arr);
+        let f = |arr: &Array1<f32>| arr.dot(arr);
         let x0 = array![0., 1.];
         let d = array![-1., 1.];
         let (alpha, fval, fcalls) =
@@ -43,7 +43,7 @@ mod tests {
 
     #[test]
     fn test_powell() {
-        let f = |arr: &VecType<f32>| arr.dot(arr);
+        let f = |arr: &Array1<f32>| arr.dot(arr);
         let x0 = array![-5., -5.];
         let x_star =
             powell::<_, (f32, f32), _>(f, &x0, None, Some(100), None, 1e-5, 1e-5, None).unwrap();

@@ -3,7 +3,7 @@ use numpy::{IntoPyArray, PyArray1, PyReadonlyArray1, PyReadonlyArray2};
 use pyo3::{
     conversion::FromPyObjectBound, exceptions::PyRuntimeError, intern, prelude::*, types::PyDict,
 };
-use tuutal::{steepest_descent, SteepestDescentParameter, TuutalError, VecType};
+use tuutal::{steepest_descent, SteepestDescentParameter, TuutalError, Array1};
 
 macro_rules! first_order_method {
     ($method:ident, $name:ident) => {

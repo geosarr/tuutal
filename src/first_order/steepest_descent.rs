@@ -170,10 +170,10 @@ where
 /// The steepest descent algorithm using some step size method.
 /// It requires an initial guess x<sub>0</sub>.
 /// ```
-/// use tuutal::{array, steepest_descent, SteepestDescentParameter, VecType};
+/// use tuutal::{array, steepest_descent, SteepestDescentParameter, Array1};
 /// // Example from python scipy.optimize.minimize_scalar
-/// let f = |x: &VecType<f32>| (x[0] - 2.) * x[0] * (x[0] + 2.).powi(2);
-/// let gradf = |x: &VecType<f32>| array![2. * (x[0] + 2.) * (2. * x[0].powi(2) - x[0] - 1.)];
+/// let f = |x: &Array1<f32>| (x[0] - 2.) * x[0] * (x[0] + 2.).powi(2);
+/// let gradf = |x: &Array1<f32>| array![2. * (x[0] + 2.) * (2. * x[0].powi(2) - x[0] - 1.)];
 /// let x0 = &array![-1.];
 ///
 /// let x_star = steepest_descent(
@@ -206,8 +206,8 @@ where
 ///
 /// // It also takes multivariate objective functions
 /// let f =
-///     |arr: &VecType<f32>| 100. * (arr[1] - arr[0].powi(2)).powi(2) + (1. - arr[0]).powi(2);
-/// let gradf = |arr: &VecType<f32>| {
+///     |arr: &Array1<f32>| 100. * (arr[1] - arr[0].powi(2)).powi(2) + (1. - arr[0]).powi(2);
+/// let gradf = |arr: &Array1<f32>| {
 ///     array![
 ///         -400. * arr[0] * (arr[1] - arr[0].powi(2)) - 2. * (1. - arr[0]),
 ///         200. * (arr[1] - arr[0].powi(2))

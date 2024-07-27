@@ -3,21 +3,21 @@ extern crate test;
 extern crate tuutal;
 
 use test::Bencher;
-use tuutal::{s, steepest_descent, Array, SteepestDescentParameter, VecType};
+use tuutal::{s, steepest_descent, Array, SteepestDescentParameter, Array1};
 
 fn rosenbrock_nd() -> (
-    impl Fn(&VecType<f32>) -> f32,
-    impl Fn(&VecType<f32>) -> VecType<f32>,
+    impl Fn(&Array1<f32>) -> f32,
+    impl Fn(&Array1<f32>) -> Array1<f32>,
 ) {
     // Rosenbrock function and its gradient function for arrays of size >= 3.
-    let f = |x: &VecType<f32>| {
+    let f = |x: &Array1<f32>| {
         let xi = x.slice(s![0..x.len() - 1]);
         let xi_plus1 = x.slice(s![1..]);
         let term = 100. * (xi_plus1.to_owned() - xi.map(|x| x.powi(2))).map(|x| x.powi(2))
             + (1. - xi.to_owned()).map(|x| x.powi(2));
         term.sum()
     };
-    let gradf = |x: &VecType<f32>| {
+    let gradf = |x: &Array1<f32>| {
         let n = x.len();
         let first_deriv = |i: usize| -400. * x[i] * (x[i + 1] - x[i].powi(2)) - 2. * (1. - x[i]);
         let last_deriv = |i: usize| 200. * (x[i] - x[i - 1].powi(2));

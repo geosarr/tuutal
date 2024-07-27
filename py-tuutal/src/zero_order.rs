@@ -6,7 +6,7 @@ use pyo3::types::PyDict;
 use tuutal::{
     brent_bounded as brent_bounded_rs, brent_root as brent_root_rs,
     brent_unbounded as brent_unbounded_rs, brentq as brentq_rs, nelder_mead as nelder_mead_rs,
-    RootFindingError, TuutalError, VecType,
+    RootFindingError, TuutalError, Array1,
 };
 
 #[pyfunction]

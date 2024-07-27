@@ -1,12 +1,12 @@
 #[cfg(test)]
 mod tests {
     use super::super::{steepest_descent, SteepestDescentParameter};
-    use crate::{array, l2_diff, TuutalError, VecType};
+    use crate::{array, l2_diff, TuutalError, Array1};
 
-    fn rosenbrock_2d() -> (fn(&VecType<f32>) -> f32, fn(&VecType<f32>) -> VecType<f32>) {
+    fn rosenbrock_2d() -> (fn(&Array1<f32>) -> f32, fn(&Array1<f32>) -> Array1<f32>) {
         let f =
-            |arr: &VecType<f32>| 100. * (arr[1] - arr[0].powi(2)).powi(2) + (1. - arr[0]).powi(2);
-        let gradf = |arr: &VecType<f32>| {
+            |arr: &Array1<f32>| 100. * (arr[1] - arr[0].powi(2)).powi(2) + (1. - arr[0]).powi(2);
+        let gradf = |arr: &Array1<f32>| {
             array![
                 -400. * arr[0] * (arr[1] - arr[0].powi(2)) - 2. * (1. - arr[0]),
                 200. * (arr[1] - arr[0].powi(2))
@@ -79,12 +79,12 @@ mod tests {
     #[test]
     fn test_rosenbrock_3d() {
         let powolf = SteepestDescentParameter::new_powell_wolfe(0.0001, 0.9);
-        let f = |x: &VecType<f32>| {
+        let f = |x: &Array1<f32>| {
             100. * ((x[1] - x[0].powi(2)).powi(2) + (x[2] - x[1].powi(2)).powi(2))
                 + (1. - x[0]).powi(2)
                 + (1. - x[1]).powi(2)
         };
-        let gradf = |x: &VecType<f32>| {
+        let gradf = |x: &Array1<f32>| {
             2. * array![
                 200. * x[0] * (x[0].powi(2) - x[1]) + (x[0] - 1.),
                 100. * (x[1] - x[0].powi(2) + 2. * x[1] * (x[1].powi(2) - x[2])) + (x[1] - 1.),

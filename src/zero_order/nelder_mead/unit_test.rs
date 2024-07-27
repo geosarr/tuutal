@@ -2,19 +2,19 @@
 mod test {
 
     use super::super::*;
-    use crate::{array, l2_diff, VecType};
+    use crate::{array, l2_diff, Array1};
     #[test]
     fn test_simplex() {
-        let x0: VecType<f32> = array![];
+        let x0: Array1<f32> = array![];
         assert_eq!(
             TuutalError::EmptyDimension { x: x0.clone() },
             simplex_parameters(&x0, true).unwrap_err()
         );
 
-        let x0: VecType<f32> = array![-10., 36.];
+        let x0: Array1<f32> = array![-10., 36.];
         assert_eq!((1., 2., 0.5, 0.5), simplex_parameters(&x0, true).unwrap());
 
-        let x0: VecType<f32> = array![-1., 1.];
+        let x0: Array1<f32> = array![-1., 1.];
         assert_eq!((1., 2., 0.5, 0.5), simplex_parameters(&x0, false).unwrap());
 
         let x0 = array![-1., 0., 1.];
@@ -116,7 +116,7 @@ mod test {
 
     #[test]
     fn test_nelder_mead() {
-        let f = |arr: &VecType<f32>| arr.dot(arr);
+        let f = |arr: &Array1<f32>| arr.dot(arr);
         let x0 = array![-5., -5.];
         let x_star =
             nelder_mead::<_, (f32, f32), _>(f, &x0, None, Some(100), None, 1e-5, 1e-5, true, None)

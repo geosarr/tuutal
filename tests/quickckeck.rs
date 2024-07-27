@@ -4,7 +4,7 @@ extern crate quickcheck;
 extern crate tuutal;
 
 use std::cmp::min;
-use tuutal::{s, Array, SteepestDescentIterates, SteepestDescentParameter, VecType};
+use tuutal::{s, Array, SteepestDescentIterates, SteepestDescentParameter, Array1};
 
 quickcheck! {
     fn descent_armijo(xs: Vec<f32>) -> bool {
@@ -21,8 +21,8 @@ quickcheck! {
             return true;
         }
         let eye = Array::ones(arr.shape()[0]);
-        let f = |x: &VecType<f32>| 0.5 * x.dot(x).powi(2) + eye.dot(x) + 1.;
-        let gradf = |x: &VecType<f32>| 2. * x * x.dot(x) + eye.clone();
+        let f = |x: &Array1<f32>| 0.5 * x.dot(x).powi(2) + eye.dot(x) + 1.;
+        let gradf = |x: &Array1<f32>| 2. * x * x.dot(x) + eye.clone();
         let param = SteepestDescentParameter::new_armijo(0.01, 0.5);
         let mut iterates = SteepestDescentIterates::new(f, gradf, arr.to_owned(), param, 1e-3);
         let mut x_prev = arr.to_owned();
@@ -54,8 +54,8 @@ quickcheck! {
             // To avoid arbitrarily large or missing numbers.
             return true;
         }
-        let f = |x: &VecType<f32>| 0.5 * x.dot(x).powi(2) + 1.;
-        let gradf = |x: &VecType<f32>| 2. * x * x.dot(x) ;
+        let f = |x: &Array1<f32>| 0.5 * x.dot(x).powi(2) + 1.;
+        let gradf = |x: &Array1<f32>| 2. * x * x.dot(x) ;
         let gamma = 0.001;
         let beta = 0.9;
         let param = SteepestDescentParameter::new_powell_wolfe(gamma, beta);

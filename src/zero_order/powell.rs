@@ -3,8 +3,8 @@ use ndarray::{Array, Axis};
 use std::ops::Mul;
 
 use crate::{
-    brent_bounded, brent_unbounded, optimize, set_default_value, Bound, Iterable, MatrixType,
-    Number, Scalar, TuutalError, VecType,
+    brent_bounded, brent_unbounded, optimize, Bound, Iterable, Array2, Number, Scalar,
+    TuutalError, Array1,
 };
 
 use super::{default_nb_iter, scalar::BrentOptResult};
@@ -13,9 +13,9 @@ use super::{default_nb_iter, scalar::BrentOptResult};
 ///
 /// It requires an initial guess x<sub>0</sub>.
 /// ```
-/// use tuutal::{array, powell, VecType};
+/// use tuutal::{array, powell, Array1};
 /// // Example from python scipy.optimize.minimize_scalar
-/// let f = |x: &VecType<f32>| (x[0] - 2.) * x[0] * (x[0] + 2.).powi(2);
+/// let f = |x: &Array1<f32>| (x[0] - 2.) * x[0] * (x[0] + 2.).powi(2);
 /// let x0 = &array![-1.];
 /// let x_star =
 ///     powell::<_, (f32, f32), _>(f, &x0, None, Some(100), None, 1e-5, 1e-5, None)
@@ -23,7 +23,7 @@ use super::{default_nb_iter, scalar::BrentOptResult};
 /// assert!((x_star[0] - 1.280776).abs() <= 1e-4);
 ///
 /// let f =
-///     |arr: &VecType<f32>| 100. * (arr[1] - arr[0].powi(2)).powi(2) + (1. - arr[0]).powi(2);
+///     |arr: &Array1<f32>| 100. * (arr[1] - arr[0].powi(2)).powi(2) + (1. - arr[0]).powi(2);
 /// let x0 = array![1., -0.5];
 /// let x_star =
 ///     powell::<_, (f32, f32), _>(f, &x0, None, Some(100), None, 1e-5, 1e-5, None)
@@ -33,18 +33,18 @@ use super::{default_nb_iter, scalar::BrentOptResult};
 /// ```
 pub fn powell<A, B, F>(
     f: F,
-    x0: &VecType<A>,
+    x0: &Array1<A>,
     maxfev: Option<usize>,
     maxiter: Option<usize>,
-    direc: Option<MatrixType<A>>,
+    direc: Option<Array2<A>>,
     xtol: A,
     ftol: A,
     bounds: Option<B>,
-) -> Result<VecType<A>, TuutalError<VecType<A>>>
+) -> Result<Array1<A>, TuutalError<Array1<A>>>
 where
-    A: Scalar<VecType<A>> + core::fmt::Debug,
+    A: Scalar<Array1<A>> + core::fmt::Debug,
     B: Bound<A>,
-    F: Fn(&VecType<A>) -> A,
+    F: Fn(&Array1<A>) -> A,
 {
     let (maxiter, maxfev) = default_nb_iter(x0.len(), maxiter, maxfev, 1000);
     let iterates = PowellIterates::new(f, x0.clone(), Some(maxfev), direc, xtol, ftol, bounds)?;
@@ -53,17 +53,17 @@ where
 
 fn line_search_powell<A, F>(
     f: F,
-    p: &VecType<A>,
-    xi: &VecType<A>,
+    p: &Array1<A>,
+    xi: &Array1<A>,
     tol: A,
-    lower_bound: Option<&VecType<A>>,
-    upper_bound: Option<&VecType<A>>,
+    lower_bound: Option<&Array1<A>>,
+    upper_bound: Option<&Array1<A>>,
     fval: A, // equal to f(p) (to avoid recomputing f(p))
     fcalls: usize,
 ) -> BrentOptResult<A>
 where
-    for<'a> A: Number + Mul<&'a VecType<A>, Output = VecType<A>> + std::fmt::Debug,
-    F: Fn(&VecType<A>) -> A,
+    for<'a> A: Number + Mul<&'a Array1<A>, Output = Array1<A>> + std::fmt::Debug,
+    F: Fn(&Array1<A>) -> A,
 {
     let obj = |alpha: A| {
         let x = p + alpha * xi;
@@ -107,11 +107,11 @@ where
 }
 
 fn line_for_search<A>(
-    x: &VecType<A>,
-    d: &VecType<A>,
-    lower_bound: &VecType<A>,
-    upper_bound: &VecType<A>,
-) -> Result<(A, A), TuutalError<VecType<A>>>
+    x: &Array1<A>,
+    d: &Array1<A>,
+    lower_bound: &Array1<A>,
+    upper_bound: &Array1<A>,
+) -> Result<(A, A), TuutalError<Array1<A>>>
 where
     A: Number + std::fmt::Debug,
 {
@@ -158,7 +158,7 @@ where
     (yes_indices, no_indices)
 }
 
-fn extremum<A, F>(x: &VecType<A>, mut compare: F) -> Result<A, TuutalError<VecType<A>>>
+fn extremum<A, F>(x: &Array1<A>, mut compare: F) -> Result<A, TuutalError<Array1<A>>>
 where
     A: Number,
     F: FnMut(&A, &A) -> bool,
@@ -176,8 +176,8 @@ where
 }
 
 fn min_max<A>(
-    m1: Result<A, TuutalError<VecType<A>>>,
-    m2: Result<A, TuutalError<VecType<A>>>,
+    m1: Result<A, TuutalError<Array1<A>>>,
+    m2: Result<A, TuutalError<Array1<A>>>,
     max: bool,
 ) -> A
 where
@@ -200,14 +200,14 @@ where
 /// Represents the sequence of iterates computed by the Powell algorithm.
 pub struct PowellIterates<F, A> {
     f: F,
-    x: VecType<A>,
-    x1: VecType<A>,
+    x: Array1<A>,
+    x1: Array1<A>,
     maxfev: usize,
-    direc: MatrixType<A>,
+    direc: Array2<A>,
     xtol: A,
     ftol: A,
-    lower: Option<VecType<A>>,
-    upper: Option<VecType<A>>,
+    lower: Option<Array1<A>>,
+    upper: Option<Array1<A>>,
     fval: A,
     fcalls: usize,
     iter: usize,
@@ -216,20 +216,20 @@ pub struct PowellIterates<F, A> {
 impl<F, A> PowellIterates<F, A> {
     pub fn new<B>(
         f: F,
-        x0: VecType<A>,
+        x0: Array1<A>,
         maxfev: Option<usize>,
-        direc: Option<MatrixType<A>>,
+        direc: Option<Array2<A>>,
         xtol: A,
         ftol: A,
         bounds: Option<B>,
-    ) -> Result<Self, TuutalError<VecType<A>>>
+    ) -> Result<Self, TuutalError<Array1<A>>>
     where
-        A: Scalar<VecType<A>> + core::fmt::Debug,
+        A: Scalar<Array1<A>> + core::fmt::Debug,
         B: Bound<A>,
-        F: Fn(&VecType<A>) -> A,
+        F: Fn(&Array1<A>) -> A,
     {
         let dim = x0.len();
-        let maxfev = set_default_value(maxfev, dim * 1000);
+        let maxfev = maxfev.unwrap_or(dim * 1000);
         if maxfev < x0.len() + 1 {
             return Err(TuutalError::MaxFunCall { num: maxfev });
         }
@@ -271,9 +271,9 @@ impl<F, A> PowellIterates<F, A> {
         })
     }
 
-    pub(crate) fn obj(&self, x: &VecType<A>) -> A
+    pub(crate) fn obj(&self, x: &Array1<A>) -> A
     where
-        F: Fn(&VecType<A>) -> A,
+        F: Fn(&Array1<A>) -> A,
     {
         let f = &self.f;
         f(x)
@@ -286,10 +286,10 @@ impl<F, A> PowellIterates<F, A> {
 
 impl<F, A> std::iter::Iterator for PowellIterates<F, A>
 where
-    A: Scalar<VecType<A>> + core::fmt::Debug,
-    F: Fn(&VecType<A>) -> A,
+    A: Scalar<Array1<A>> + core::fmt::Debug,
+    F: Fn(&Array1<A>) -> A,
 {
-    type Item = VecType<A>;
+    type Item = Array1<A>;
     fn next(&mut self) -> Option<Self::Item> {
         let zero = A::zero();
         let one = A::one();
@@ -393,15 +393,15 @@ where
     }
 }
 
-impl<A, F> Iterable<VecType<A>> for PowellIterates<F, A>
+impl<A, F> Iterable<Array1<A>> for PowellIterates<F, A>
 where
-    A: Scalar<VecType<A>> + core::fmt::Debug,
-    F: Fn(&VecType<A>) -> A,
+    A: Scalar<Array1<A>> + core::fmt::Debug,
+    F: Fn(&Array1<A>) -> A,
 {
     fn nb_iter(&self) -> usize {
         self.iter
     }
-    fn iterate(&self) -> VecType<A> {
+    fn iterate(&self) -> Array1<A> {
         self.x.clone()
     }
 }
