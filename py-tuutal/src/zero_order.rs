@@ -162,14 +162,18 @@ pub fn brent_bounded(
 pub fn brent_unbounded(
     py: Python,
     f: PyObject,
-    xa: f64,
-    xb: f64,
     maxiter: usize,
-    tol: f64,
+    xtol: f64,
+    brack: Option<(f64, f64)>,
     kwargs: Option<&Bound<'_, PyDict>>,
 ) -> PyResult<(f64, f64, usize)> {
     let func = wrap_scalar_func_scalar!(py, f, kwargs);
-    match brent_unbounded_rs(func, Some(&[xa, xb]), maxiter, tol) {
+    let brack = brack.map_or(None, |v| Some([v.0, v.1]));
+    match if let Some(val) = brack {
+        brent_unbounded_rs(func, Some(&[val[0], val[1]]), maxiter, xtol)
+    } else {
+        brent_unbounded_rs(func, None, maxiter, xtol)
+    } {
         Ok(val) => Ok(val),
         Err(error) => match error {
             // Does not make a difference between bracketing
