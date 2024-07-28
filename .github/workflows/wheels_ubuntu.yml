@@ -20,12 +20,21 @@ jobs:
           - runner: ubuntu-latest
             target: x86_64
         interpreter: ["3.8", "3.9", "3.10", "3.11", "3.12"]
+    defaults:
+      run:
+        shell: bash -l {0}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.interpreter }}
       - uses: dtolnay/rust-toolchain@stable
+      - uses: conda-incubator/setup-miniconda@v2
+          with:
+            miniconda-version: "latest"
+            channels: bioconda, conda-forge, defaults
+            auto-update-conda: true
+            
       - name: Build wheels
         uses: PyO3/maturin-action@v1
         with:
@@ -39,8 +48,14 @@ jobs:
           manylinux: auto
 
       - name: Test wheel
-        # # Only test on x86-64 for now as this matches the runner architecture
-        # if: matrix.platform.target == 'x86-64'
         run: |
           pip install --force-reinstall --verbose dist/*.whl
           python -c 'import tuutal'
+
+      - name: Test environment
+        run: |
+          conda en create --file py-tuutal/environment.yml
+          conda activate tuutal
+          pytest tests/
+        
+        
