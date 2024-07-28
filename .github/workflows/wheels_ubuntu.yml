@@ -39,8 +39,8 @@ jobs:
           manylinux: auto
 
       - name: Test wheel
-        # Only test on x86-64 for now as this matches the runner architecture
-        if: matrix.platform.target == 'x86-64'
+        # # Only test on x86-64 for now as this matches the runner architecture
+        # if: matrix.platform.target == 'x86-64'
         run: |
           pip install --force-reinstall --verbose dist/*.whl
           python -c 'import tuutal'
