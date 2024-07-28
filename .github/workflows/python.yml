@@ -49,6 +49,10 @@ jobs:
             --out dist
             --interpreter ${{ matrix.interpreter }}
           manylinux: auto
+      - name: Test wheel
+        run: |
+          pip install --force-reinstall --verbose dist/*.whl
+          python -c 'import tuutal'
       # - name: Upload wheels
       #   uses: actions/upload-artifact@v4
       #   with:
@@ -85,6 +89,10 @@ jobs:
             --interpreter ${{ matrix.interpreter }}
           # sccache: "true"
           manylinux: musllinux_1_2
+      - name: Test wheel
+        run: |
+          pip install --force-reinstall --verbose dist/*.whl
+          python -c 'import tuutal'
       # - name: Upload wheels
       #   uses: actions/upload-artifact@v4
       #   with:
@@ -117,6 +125,10 @@ jobs:
             --out dist
             --interpreter ${{ matrix.interpreter }}
           # sccache: "true"
+      - name: Test wheel
+        run: |
+          pip install --force-reinstall --verbose dist/*.whl
+          python -c 'import tuutal'
       # - name: Upload wheels
       #   uses: actions/upload-artifact@v4
       #   with:
@@ -148,6 +160,10 @@ jobs:
             --out dist
             --interpreter ${{ matrix.interpreter }}
           # sccache: "true"
+      - name: Test wheel
+        run: |
+          pip install --force-reinstall --verbose dist/*.whl
+          python -c 'import tuutal'
       # - name: Upload wheels
       #   uses: actions/upload-artifact@v4
       #   with:

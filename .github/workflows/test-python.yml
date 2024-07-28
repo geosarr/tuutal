@@ -1,0 +1,40 @@
+name: Test Python
+on:
+  push:
+    branches: [dev]
+    tags:
+      - "*"
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  linux:
+    runs-on: ${{ matrix.platform.runner }}
+    strategy:
+      matrix:
+        platform:
+          - runner: ubuntu-latest
+            target: x86_64
+        interpreter: ["3.10"]
+    defaults:
+      run:
+        shell: bash -l {0}
+    steps:
+      - uses: actions/checkout@v4
+      # - uses: actions/setup-python@v5
+      #   with:
+      #     python-version: ${{ matrix.interpreter }}
+      # - uses: dtolnay/rust-toolchain@stable
+      - uses: conda-incubator/setup-miniconda@v2
+        with:
+          miniconda-version: "latest"
+          channels: defaults # bioconda, conda-forge,
+          auto-update-conda: true
+
+      - name: Test environment
+        run: |
+          conda env create --file py-tuutal/environment.yml
+          conda activate tuutal
+          pip list
+          maturin develop --release
+          pytest
