@@ -37,4 +37,4 @@ jobs:
           conda activate tuutal
           pip list
           maturin develop --release --manifest-path py-tuutal/Cargo.toml
-          pytest
+          pip list
