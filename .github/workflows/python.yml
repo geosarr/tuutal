@@ -31,11 +31,12 @@ jobs:
             target: s390x
           - runner: ubuntu-latest
             target: ppc64le
+        interpreter: ["3.10", "3.11"]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: 3.x
+          python-version: ${{ matrix.interpreter }}
       - uses: dtolnay/rust-toolchain@stable
       - name: Build wheels
         uses: PyO3/maturin-action@v1
@@ -46,6 +47,7 @@ jobs:
             --release  
             --manifest-path py-tuutal/Cargo.toml 
             --out dist
+            --interpreter ${{ matrix.interpreter }}
           manylinux: auto
       # - name: Upload wheels
       #   uses: actions/upload-artifact@v4
