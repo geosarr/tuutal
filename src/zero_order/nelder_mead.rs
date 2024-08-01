@@ -2,7 +2,7 @@ use core::ops::Mul;
 mod unit_test;
 use ndarray::{s, Axis};
 extern crate alloc;
-use crate::{optimize, Array1, Array2, Bound, Bounds, Iterable, Number, Scalar, TuutalError};
+use crate::{Array1, Array2, Bound, Bounds, Number, Optimizer, Scalar, TuutalError};
 use alloc::{string::ToString, vec::Vec};
 
 use super::default_nb_iter;
@@ -48,7 +48,7 @@ where
     F: Fn(&Array1<A>) -> A,
 {
     let (maxiter, maxfev) = default_nb_iter(x0.len(), maxiter, maxfev, 200);
-    let iterates = NelderMeadIterates::new(
+    let mut nelder_mead = NelderMeadIterates::new(
         f,
         x0.clone(),
         Some(maxfev),
@@ -58,7 +58,7 @@ where
         adaptive,
         bounds,
     )?;
-    optimize(iterates, maxiter)
+    nelder_mead.optimize(Some(maxiter))
 }
 
 /// Gets the hyperparameters of the Nelder-Mead Algorithm.
@@ -600,11 +600,12 @@ where
     }
 }
 
-impl<A, F> Iterable<Array1<A>> for NelderMeadIterates<F, A>
+impl<A, F> Optimizer<Array1<A>> for NelderMeadIterates<F, A>
 where
     F: Fn(&Array1<A>) -> A,
     A: Scalar<Array1<A>>,
 {
+    type Iterate = Array1<A>;
     fn nb_iter(&self) -> usize {
         self.iter
     }

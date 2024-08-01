@@ -4,18 +4,18 @@ mod armijo;
 mod powell_wolfe;
 mod unit_test;
 use crate::{
-    optimize,
-    traits::{VecDot, VecInfo, VecZero},
-    Iterable, Number, Scalar, TuutalError,
+    traits::{VecDot, Vector},
+    Number, Optimizer, TuutalError,
 };
 use adadelta::adadelta;
 use adagrad::adagrad;
 use armijo::armijo;
-use powell_wolfe::powell_wolfe;
 use core::{
     fmt::Debug,
-    ops::{Add, Div, Mul, Neg},
+    ops::{Add, Mul},
 };
+use num_traits::One;
+use powell_wolfe::powell_wolfe;
 
 /// Parameters used in the steepest descent method.
 ///
@@ -218,52 +218,58 @@ where
 /// assert!((opt[0] - 1.).abs() <= 1e-2);
 /// assert!((opt[1] - 1.).abs() <= 1e-2);
 /// ```
-pub fn steepest_descent<X, F, G, A>(
+pub fn steepest_descent<X, F, G>(
     f: F,
     gradf: G,
     x0: &X,
-    params: &SteepestDescentParameter<A>,
-    eps: A,
+    params: &SteepestDescentParameter<X::Elem>,
+    eps: X::Elem,
     maxiter: usize,
 ) -> Result<X, TuutalError<X>>
 where
-    A: Scalar<X> + core::fmt::Display,
-    X: VecDot<X, Output = A> + Neg<Output = X> + Add<X, Output = X> + Clone + VecInfo + VecZero,
+    X: Vector + Clone + VecDot<Output = X::Elem>,
     for<'a> &'a X: Add<X, Output = X> + Mul<&'a X, Output = X> + Mul<X, Output = X>,
-    F: Fn(&X) -> A,
+    F: Fn(&X) -> X::Elem,
     G: Fn(&X) -> X,
-    X: FromIterator<A> + IntoIterator<Item = A> + Clone + Div<X, Output = X> + Mul<X, Output = X>,
 {
-    let iterates = SteepestDescentIterates::new(f, gradf, x0.clone(), *params, eps);
-    optimize(iterates, maxiter)
+    let mut descent = SteepestDescentIterates::new(f, gradf, x0.clone(), *params, eps);
+    descent.optimize(Some(maxiter))
 }
 
 /// Represents the sequence of iterates computed by a steepest descent algorithm.
-pub struct SteepestDescentIterates<X, F, G, A>
+pub struct SteepestDescentIterates<X, F, G>
 where
-    F: Fn(&X) -> A,
+    X: Vector,
+    F: Fn(&X) -> X::Elem,
     G: Fn(&X) -> X,
 {
     f: F,
     gradf: G,
-    params: SteepestDescentParameter<A>,
+    params: SteepestDescentParameter<X::Elem>,
     x: X,
-    eps: A,
+    eps: X::Elem,
     iter: usize,
     sigma: X,
     accum_grad: X,
     accum_update: X,
+    fcalls: usize,
 }
 
-impl<X, F, G, A> SteepestDescentIterates<X, F, G, A>
+impl<X, F, G> SteepestDescentIterates<X, F, G>
 where
-    F: Fn(&X) -> A,
+    X: Vector,
+    F: Fn(&X) -> X::Elem,
     G: Fn(&X) -> X,
 {
-    pub fn new(f: F, gradf: G, x: X, params: SteepestDescentParameter<A>, eps: A) -> Self
+    pub fn new(
+        f: F,
+        gradf: G,
+        x: X,
+        params: SteepestDescentParameter<X::Elem>,
+        eps: X::Elem,
+    ) -> Self
     where
-        A: Scalar<X>,
-        X: VecDot<X, Output = A> + Add<X, Output = X> + VecZero + VecInfo,
+        X: Vector,
         for<'a> &'a X: Add<X, Output = X>,
     {
         let dim = x.len();
@@ -278,6 +284,7 @@ where
                 sigma: X::zero(1),
                 accum_grad: X::zero(1),
                 accum_update: X::zero(1),
+                fcalls: 0,
             }
         } else {
             Self {
@@ -290,6 +297,7 @@ where
                 sigma: X::zero(dim),
                 accum_grad: X::zero(dim),
                 accum_update: X::zero(dim),
+                fcalls: 0,
             }
         }
     }
@@ -315,14 +323,12 @@ where
     }
 }
 
-impl<X, F, G, A> core::iter::Iterator for SteepestDescentIterates<X, F, G, A>
+impl<X, F, G> core::iter::Iterator for SteepestDescentIterates<X, F, G>
 where
-    A: Scalar<X> + core::fmt::Display,
-    X: VecDot<X, Output = A> + Neg<Output = X> + Add<X, Output = X> + Clone,
+    X: Vector + Clone + VecDot<Output = X::Elem>,
     for<'a> &'a X: Add<X, Output = X> + Mul<&'a X, Output = X> + Mul<X, Output = X>,
-    F: Fn(&X) -> A,
+    F: Fn(&X) -> X::Elem,
     G: Fn(&X) -> X,
-    X: FromIterator<A> + IntoIterator<Item = A> + Clone + Div<X, Output = X> + Mul<X, Output = X>,
 {
     type Item = X;
     fn next(&mut self) -> Option<Self::Item> {
@@ -332,6 +338,7 @@ where
             self.iter += 1;
             None
         } else {
+            let mut fcalls = self.fcalls;
             self.sigma = match self.params {
                 SteepestDescentParameter::Armijo { gamma, beta } => [armijo(
                     self.obj(),
@@ -340,18 +347,21 @@ where
                     squared_norm_2_gradfx,
                     gamma,
                     beta,
-                )]
+                    &mut fcalls,
+                )
+                .1]
                 .into_iter()
                 .collect::<X>(),
                 SteepestDescentParameter::PowellWolfe { gamma, beta } => [powell_wolfe(
-                    self.obj(),
-                    self.grad_obj(),
+                    (self.obj(), self.grad_obj()),
                     &self.x,
                     &neg_gradfx,
                     squared_norm_2_gradfx,
                     gamma,
                     beta,
-                )]
+                    &mut fcalls,
+                )
+                .1]
                 .into_iter()
                 .collect::<X>(),
                 SteepestDescentParameter::AdaGrad { gamma, beta } => {
@@ -368,7 +378,7 @@ where
                         beta,
                     );
                     self.accum_update = gamma * &self.accum_update
-                        + (A::one() - gamma) * (&step_size * &step_size) * squared_grad;
+                        + (X::Elem::one() - gamma) * (&step_size * &step_size) * squared_grad;
                     step_size
                 }
             };
@@ -379,15 +389,14 @@ where
     }
 }
 
-impl<X, F, G, A> Iterable<X> for SteepestDescentIterates<X, F, G, A>
+impl<X, F, G> Optimizer<X> for SteepestDescentIterates<X, F, G>
 where
-    A: Scalar<X> + core::fmt::Display,
-    X: VecDot<X, Output = A> + Neg<Output = X> + Add<X, Output = X> + Clone,
+    X: Vector + Clone + VecDot<Output = X::Elem>,
     for<'a> &'a X: Add<X, Output = X> + Mul<&'a X, Output = X> + Mul<X, Output = X>,
-    F: Fn(&X) -> A,
+    F: Fn(&X) -> X::Elem,
     G: Fn(&X) -> X,
-    X: FromIterator<A> + IntoIterator<Item = A> + Clone + Div<X, Output = X> + Mul<X, Output = X>,
 {
+    type Iterate = X;
     fn nb_iter(&self) -> usize {
         self.nb_iter()
     }

@@ -29,7 +29,7 @@ pub use ndarray::{array, s, Array1, Array2};
 #[allow(unused)]
 pub(crate) use utils::{is_between, l2_diff};
 
-pub use traits::{Bound, Iterable, Number, Scalar};
+pub use traits::{Bound, Number, Optimizer, Scalar};
 pub use zero_order::{
     bracket, brent_bounded, brent_root, brent_unbounded, brentq, nelder_mead, powell,
     NelderMeadIterates, PowellIterates,
@@ -37,18 +37,18 @@ pub use zero_order::{
 
 pub(crate) use zero_order::Bounds;
 
-/// Generic function to launch an optimization routine when intermediate iterates are not needed.
-pub(crate) fn optimize<X: Clone, I: Iterable<X>>(
-    mut iterable: I,
-    maxiter: usize,
-) -> Result<X, TuutalError<X>> {
-    while let Some(x) = iterable.next() {
-        if iterable.nb_iter() > maxiter {
-            return Err(TuutalError::Convergence {
-                iterate: x,
-                maxiter,
-            });
-        }
-    }
-    Ok(iterable.iterate())
-}
+// /// Generic function to launch an optimization routine when intermediate iterates are not needed.
+// pub(crate) fn optimize<X: Clone, I: Optimizer>(
+//     mut iterable: I,
+//     maxiter: usize,
+// ) -> Result<X, TuutalError<X>> {
+//     while let Some(x) = iterable.next() {
+//         if iterable.nb_iter() > maxiter {
+//             return Err(TuutalError::Convergence {
+//                 iterate: x,
+//                 maxiter,
+//             });
+//         }
+//     }
+//     Ok(iterable.iterate())
+// }

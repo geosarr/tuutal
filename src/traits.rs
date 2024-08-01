@@ -1,9 +1,9 @@
-use crate::{s, Array1, Array2, Bounds};
+use crate::{s, Array1, Array2, Bounds, TuutalError};
 extern crate alloc;
 use alloc::vec::Vec;
-use core::ops::{Add, Div, Mul, Sub};
+use core::ops::{Add, Div, Mul, Neg, Sub};
 use ndarray::linalg::Dot;
-use num_traits::{Float, FromPrimitive, Zero};
+use num_traits::{Float, FromPrimitive};
 
 /// Complements num_traits float-pointing number Float trait by adding
 /// conversion from f32 and provides easy access to exponential numbers.
@@ -53,12 +53,40 @@ macro_rules! impl_scalar(
 );
 impl_scalar!(f32, f64);
 
+pub trait Vector:
+    Neg<Output = Self>
+    + Add<Output = Self>
+    + Mul<Output = Self>
+    + Div<Output = Self>
+    + Sub<Output = Self>
+    + FromIterator<Self::Elem>
+    + IntoIterator<Item = Self::Elem>
+    + Sized
+where
+    Self::Elem: Scalar<Self>,
+{
+    type Elem;
+    fn len(&self) -> usize;
+    fn zero(size: usize) -> Self;
+}
+impl<T> Vector for Array1<T>
+where
+    T: Scalar<Array1<T>>,
+{
+    type Elem = T;
+    fn len(&self) -> usize {
+        Array1::len(self)
+    }
+    fn zero(size: usize) -> Self {
+        Array1::from_elem(size, T::zero())
+    }
+}
+
 /// Dot operation between vectors.
 pub trait VecDot<Rhs = Self> {
     type Output;
     fn dot(&self, rhs: &Rhs) -> Self::Output;
 }
-
 impl<T> VecDot<Array1<T>> for Array1<T>
 where
     Self: Dot<Self, Output = T>,
@@ -69,33 +97,29 @@ where
     }
 }
 
-pub trait VecZero {
-    fn zero(size: usize) -> Self;
-}
-impl<T> VecZero for Array1<T>
-where
-    T: Zero + Clone,
-{
-    fn zero(size: usize) -> Self {
-        Array1::from_elem(size, T::zero())
-    }
-}
-
-pub trait VecInfo {
-    fn len(&self) -> usize;
-}
-impl<T> VecInfo for Array1<T> {
-    fn len(&self) -> usize {
-        Array1::len(self)
-    }
-}
-
-/// Implements an iterator counting the number of iterations done so far.
-pub trait Iterable<X>: core::iter::Iterator<Item = X> {
+/// Implements an iterator counting the number of iterations done so far and a full optimization routine.
+pub trait Optimizer<X>: core::iter::Iterator<Item = Self::Iterate> {
+    type Iterate;
     /// Number of iterations done so far.
     fn nb_iter(&self) -> usize;
     /// Current iterate.
-    fn iterate(&self) -> X;
+    fn iterate(&self) -> Self::Iterate;
+    /// Full optimization routine.
+    fn optimize(
+        &mut self,
+        maxiter: Option<usize>,
+    ) -> Result<Self::Iterate, TuutalError<Self::Iterate>> {
+        let maxiter = maxiter.unwrap_or(1000);
+        while let Some(x) = self.next() {
+            if self.nb_iter() > maxiter {
+                return Err(TuutalError::Convergence {
+                    iterate: x,
+                    maxiter,
+                });
+            }
+        }
+        Ok(self.iterate())
+    }
 }
 
 /// Implements the notion of upper and lower bounds

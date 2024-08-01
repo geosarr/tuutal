@@ -5,8 +5,7 @@ extern crate alloc;
 use alloc::vec::Vec;
 
 use crate::{
-    brent_bounded, brent_unbounded, optimize, Array1, Array2, Bound, Iterable, Number, Scalar,
-    TuutalError,
+    brent_bounded, brent_unbounded, Array1, Array2, Bound, Number, Optimizer, Scalar, TuutalError,
 };
 
 use super::{default_nb_iter, scalar::BrentOptResult};
@@ -49,8 +48,8 @@ where
     F: Fn(&Array1<A>) -> A,
 {
     let (maxiter, maxfev) = default_nb_iter(x0.len(), maxiter, maxfev, 1000);
-    let iterates = PowellIterates::new(f, x0.clone(), Some(maxfev), direc, xtol, ftol, bounds)?;
-    optimize(iterates, maxiter)
+    let mut powell = PowellIterates::new(f, x0.clone(), Some(maxfev), direc, xtol, ftol, bounds)?;
+    powell.optimize(Some(maxiter))
 }
 
 fn line_search_powell<A, F>(
@@ -395,11 +394,12 @@ where
     }
 }
 
-impl<A, F> Iterable<Array1<A>> for PowellIterates<F, A>
+impl<A, F> Optimizer<Array1<A>> for PowellIterates<F, A>
 where
     A: Scalar<Array1<A>> + core::fmt::Debug,
     F: Fn(&Array1<A>) -> A,
 {
+    type Iterate = Array1<A>;
     fn nb_iter(&self) -> usize {
         self.iter
     }
