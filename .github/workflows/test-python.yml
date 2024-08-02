@@ -1,0 +1,34 @@
+name: Test Python
+on:
+  push:
+    branches: [dev]
+    tags:
+      - "*"
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  linux:
+    runs-on: ${{ matrix.platform.runner }}
+    strategy:
+      matrix:
+        platform:
+          - runner: ubuntu-latest
+            target: x86_64
+    defaults:
+      run:
+        shell: bash -l {0}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: conda-incubator/setup-miniconda@v2
+        with:
+          miniconda-version: "latest"
+          channels: defaults
+          auto-update-conda: true
+
+      - name: Test environment
+        run: |
+          conda env create --file py-tuutal/environment.yml
+          conda activate tuutal
+          maturin develop --release --manifest-path py-tuutal/Cargo.toml
+          pytest py-tuutal/tests/

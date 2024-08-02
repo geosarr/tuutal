@@ -1,7 +1,9 @@
 pub mod root;
 use crate::Number;
 use crate::TuutalError;
-use std::mem::swap;
+use core::mem::swap;
+extern crate alloc;
+use alloc::string::ToString;
 
 pub(crate) type BrentOptError<T> = TuutalError<(T, T, T, T, T, T, usize)>;
 pub(crate) type BrentOptResult<T> = Result<(T, T, usize), BrentOptError<T>>;

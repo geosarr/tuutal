@@ -6,33 +6,31 @@
 //! [scipy]: https://docs.scipy.org/doc/scipy-1.13.1/reference/optimize.html
 //! [ndarr]: https://crates.io/crates/ndarray
 
+#![no_std]
+
 /// A set of error handling objects.
 pub mod error;
 
+/// A set of tools to optimize functions when gradient computation is provided.
+pub mod first_order;
 /// ["Black-Box Optimization"][bbox] module, it provides tools to optimize
 /// functions when only function evaluation is permitted.
 ///
 /// [bbox]: https://en.wikipedia.org/wiki/Derivative-free_optimization
 pub mod zero_order;
 
-/// A set of tools to optimize functions when gradient computation is provided.
-pub mod first_order;
-
 mod traits;
 mod utils;
 
 pub use error::{RootFindingError, TuutalError};
-pub use first_order::{steepest_descent, SteepestDescentIterates, SteepestDescentParameter};
-pub use ndarray::{array, s, Array};
-use ndarray::{
-    prelude::{ArrayBase, Dim},
-    OwnedRepr,
-};
+pub use first_order::{descent, Armijo, DescentParameter, PowellWolfe};
+pub use ndarray::{array, s, Array1, Array2};
 
+use num_traits::Num;
 #[allow(unused)]
 pub(crate) use utils::{is_between, l2_diff};
 
-pub use traits::{Bound, Iterable, Number, Scalar};
+pub use traits::{Bound, Number, Optimizer, Scalar};
 pub use zero_order::{
     bracket, brent_bounded, brent_root, brent_unbounded, brentq, nelder_mead, powell,
     NelderMeadIterates, PowellIterates,
@@ -40,33 +38,33 @@ pub use zero_order::{
 
 pub(crate) use zero_order::Bounds;
 
-/// Two dimensional owned matrix
-pub type MatrixType<T> = ArrayBase<OwnedRepr<T>, Dim<[usize; 2]>>;
-
-/// One dimensional owned matrix or vector.
-pub type VecType<T> = ArrayBase<OwnedRepr<T>, Dim<[usize; 1]>>;
-
-/// Generic function to launch an optimization routine when intermediate iterates are not needed.
-pub(crate) fn optimize<X: Clone, I: Iterable<X>>(
-    mut iterable: I,
-    maxiter: usize,
-) -> Result<X, TuutalError<X>> {
-    while let Some(x) = iterable.next() {
-        if iterable.nb_iter() > maxiter {
-            return Err(TuutalError::Convergence {
-                iterate: x,
-                maxiter,
-            });
-        }
-    }
-    Ok(iterable.iterate())
+#[derive(Debug)]
+pub(crate) struct Counter<T = usize> {
+    iter: T,
+    fcalls: T,
+    gcalls: T,
 }
 
-/// Default value setter for a function argument.
-pub(crate) fn set_default_value<T>(arg: Option<T>, value: T) -> T {
-    if let Some(val) = arg {
-        val
-    } else {
-        value
+impl<T> Counter<T>
+where
+    T: Num,
+{
+    pub(crate) fn new() -> Self {
+        Self {
+            iter: T::zero(),
+            fcalls: T::zero(),
+            gcalls: T::zero(),
+        }
     }
+}
+
+/// A set of variable names used in this crate to avoid using &str.
+#[derive(Debug, PartialEq, Eq, Hash)]
+pub enum VarName {
+    Gamma,
+    Beta,
+    Epsilon,
+    StepSize,
+    AccumGrad,
+    AccumUpdate,
 }

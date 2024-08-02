@@ -1,4 +1,4 @@
-use std::{
+use core::{
     mem::swap,
     ops::{Div, Mul, Sub},
 };

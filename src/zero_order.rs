@@ -1,3 +1,6 @@
+//! As such, the objective function output when convergence is reached and the number of function calls
+//! during an algorithm is a simple yet arguably a good measure of optimality.
+
 mod nelder_mead;
 mod powell;
 mod scalar;
@@ -9,22 +12,22 @@ pub use scalar::{
     root::{brent_root, brentq},
 };
 
-use crate::VecType;
+use crate::Array1;
 
 #[derive(Debug)]
 pub(crate) struct Bounds<A> {
-    lower: VecType<A>,
-    upper: VecType<A>,
+    lower: Array1<A>,
+    upper: Array1<A>,
 }
 
 impl<A> Bounds<A> {
-    pub fn new(lower: VecType<A>, upper: VecType<A>) -> Self {
+    pub fn new(lower: Array1<A>, upper: Array1<A>) -> Self {
         Self { lower, upper }
     }
-    pub fn lower_bound(&self) -> &VecType<A> {
+    pub fn lower_bound(&self) -> &Array1<A> {
         &self.lower
     }
-    pub fn upper_bound(&self) -> &VecType<A> {
+    pub fn upper_bound(&self) -> &Array1<A> {
         &self.upper
     }
 }
