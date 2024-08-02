@@ -6,7 +6,7 @@
 //! [scipy]: https://docs.scipy.org/doc/scipy-1.13.1/reference/optimize.html
 //! [ndarr]: https://crates.io/crates/ndarray
 
-// #![no_std]
+#![no_std]
 
 /// A set of error handling objects.
 pub mod error;

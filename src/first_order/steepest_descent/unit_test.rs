@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use super::super::{descent, DescentParameter};
+    use crate::{descent, DescentParameter};
     use crate::{l2_diff, Array1, TuutalError};
 
     fn rosenbrock_2d() -> (fn(&Array1<f32>) -> f32, fn(&Array1<f32>) -> Array1<f32>) {
@@ -20,9 +20,8 @@ mod tests {
         let armijo = DescentParameter::new_armijo(0.01, 0.5);
         let (f, gradf) = rosenbrock_2d();
         let x = Array1::from_iter([1f32, -0.5f32]);
-        let opt = descent(f, gradf, &x, &armijo, 1e-4, 10000).unwrap();
+        let opt = descent(f, gradf, &x, &armijo, 1e-4, Some(10000)).unwrap();
         let expected = Array1::from_iter([1., 1.]);
-        println!("{:}", opt);
         assert!(l2_diff(&opt, &expected) < 1e-3);
     }
 
@@ -31,7 +30,7 @@ mod tests {
         let powolf = DescentParameter::new_powell_wolfe(0.0001, 0.9);
         let (f, gradf) = rosenbrock_2d();
         let x = Array1::from_iter([1f32, -0.5f32]);
-        let opt = descent(f, gradf, &x, &powolf, 1e-4, 10000).unwrap();
+        let opt = descent(f, gradf, &x, &powolf, 1e-4, Some(10000)).unwrap();
         let expected = Array1::from_iter([1., 1.]);
         assert!(l2_diff(&opt, &expected) < 1e-3);
     }
@@ -44,7 +43,7 @@ mod tests {
         };
         let (f, gradf) = rosenbrock_2d();
         let x = Array1::from_iter([1f32, -0.5f32]);
-        let opt = descent(f, gradf, &x, &adagrad, 1e-4, 10000).unwrap_err();
+        let opt = descent(f, gradf, &x, &adagrad, 1e-4, Some(10000)).unwrap_err();
         let expected = Array1::from_iter([1., 1.]);
         // Slow convergence rate for this problem
         match opt {
@@ -64,7 +63,7 @@ mod tests {
         };
         let (f, gradf) = rosenbrock_2d();
         let x = Array1::from_iter([1f32, -0.5f32]);
-        let opt = descent(f, gradf, &x, &adadelta, 1e-4, 10000).unwrap_err();
+        let opt = descent(f, gradf, &x, &adadelta, 1e-4, Some(10000)).unwrap_err();
         let expected = Array1::from_iter([1., 1.]);
         // println!("{:?}", opt);
         // Slow convergence rate for this problem
@@ -93,7 +92,7 @@ mod tests {
             ])
         };
         let x = Array1::from_iter([10f32, -15., -100.]);
-        let opt = descent(f, gradf, &x, &powolf, 1e-4, 10000).unwrap();
+        let opt = descent(f, gradf, &x, &powolf, 1e-4, Some(10000)).unwrap();
         let expected = Array1::from_iter([1., 1., 1.]);
         assert!(l2_diff(&opt, &expected) < 1e-3);
     }

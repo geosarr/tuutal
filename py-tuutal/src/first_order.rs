@@ -24,7 +24,7 @@ macro_rules! first_order_method {
                 &x0.as_array().to_owned(),
                 &DescentParameter::$name(gamma, beta),
                 gtol,
-                maxiter.unwrap_or(x0.len().unwrap() * 1000),
+                maxiter,
             ) {
                 Ok(value) => Ok(value.into_pyarray_bound(py)),
                 Err(error) => match error {
