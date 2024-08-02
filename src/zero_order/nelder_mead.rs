@@ -606,10 +606,12 @@ where
     A: Scalar<Array1<A>>,
 {
     type Iterate = Array1<A>;
+    type Intermediate = ();
     fn nb_iter(&self) -> usize {
         self.iter
     }
     fn iterate(&self) -> Array1<A> {
         self.sim.row(0).to_owned()
     }
+    fn intermediate(&self) {}
 }

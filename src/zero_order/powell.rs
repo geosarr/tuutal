@@ -400,10 +400,12 @@ where
     F: Fn(&Array1<A>) -> A,
 {
     type Iterate = Array1<A>;
+    type Intermediate = ();
     fn nb_iter(&self) -> usize {
         self.iter
     }
     fn iterate(&self) -> Array1<A> {
         self.x.clone()
     }
+    fn intermediate(&self) {}
 }

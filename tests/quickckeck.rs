@@ -1,10 +1,9 @@
-// #![cfg(feature = "quickcheck")]
 #[macro_use]
 extern crate quickcheck;
 extern crate tuutal;
 
 use core::cmp::min;
-use tuutal::{s, Array1, Descent, DescentParameter};
+use tuutal::{s, Armijo, Array1, Optimizer, PowellWolfe};
 
 quickcheck! {
     fn descent_armijo(xs: Vec<f32>) -> bool {
@@ -23,8 +22,7 @@ quickcheck! {
         let eye = Array1::ones(arr.shape()[0]);
         let f = |x: &Array1<f32>| 0.5 * x.dot(x).powi(2) + eye.dot(x) + 1.;
         let gradf = |x: &Array1<f32>| 2. * x * x.dot(x) + eye.clone();
-        let param = DescentParameter::new_armijo(0.01, 0.5);
-        let mut iterates = Descent::new(f, gradf, arr.to_owned(), param, 1e-3);
+        let mut iterates = Armijo::new(f, gradf, arr.to_owned(), 0.01, 0.5, 1e-3);
         let mut x_prev = arr.to_owned();
         let mut iter = 1;
         while let Some(x) = iterates.next() {
@@ -58,15 +56,15 @@ quickcheck! {
         let gradf = |x: &Array1<f32>| 2. * x * x.dot(x) ;
         let gamma = 0.001;
         let beta = 0.9;
-        let param = DescentParameter::new_powell_wolfe(gamma, beta);
-        let mut iterates = Descent::new(f, gradf, arr.to_owned(), param, 1e-3);
+        let mut iterates = PowellWolfe::new(f, gradf, arr.to_owned(), gamma, beta, 1e-3);
         let mut x_prev = arr.to_owned();
         let mut iter = 1;
         while let Some(x_next) = iterates.next() {
             // let gradfx_next = gradf(&x_next);
             let neg_gradfx_prev = -gradf(&x_prev);
             let gradfx_d = neg_gradfx_prev.dot(&neg_gradfx_prev);
-            assert!(f(&x_next) <= f(&x_prev) - iterates.sigma()[0] * gamma * gradfx_d);
+            let intermed = iterates.intermediate();
+            assert!(f(&x_next) <= f(&x_prev) - intermed["sigma"][0] * gamma * gradfx_d);
             x_prev = x_next;
             iter += 1;
             if iter > 10 {

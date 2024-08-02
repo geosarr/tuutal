@@ -100,6 +100,7 @@ where
 /// Implements an iterator counting the number of iterations done so far and a full optimization routine.
 pub trait Optimizer: core::iter::Iterator<Item = Self::Iterate> {
     type Iterate;
+    type Intermediate;
     /// Number of iterations done so far.
     fn nb_iter(&self) -> usize;
     /// Current iterate.
@@ -120,6 +121,7 @@ pub trait Optimizer: core::iter::Iterator<Item = Self::Iterate> {
         }
         Ok(self.iterate())
     }
+    fn intermediate(&self) -> Self::Intermediate;
 }
 
 /// Implements the notion of upper and lower bounds

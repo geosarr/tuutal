@@ -1,18 +1,17 @@
 mod armijo;
 mod powell_wolfe;
 mod unit_test;
-use crate::first_order::adaptive_descent::{adadelta, adagrad};
+use crate::first_order::adaptive_descent::{AdaDelta, AdaGrad};
 use crate::{
     traits::{VecDot, Vector},
     Number, Optimizer, TuutalError,
 };
-use armijo::armijo;
+pub use armijo::Armijo;
 use core::{
     fmt::Debug,
     ops::{Add, Mul},
 };
-use num_traits::One;
-use powell_wolfe::powell_wolfe;
+pub use powell_wolfe::PowellWolfe;
 
 /// Parameters used in the a descent method.
 ///
@@ -154,14 +153,6 @@ where
         assert!(beta > T::zero());
         Self::AdaDelta { gamma, beta }
     }
-    fn step_size_is_scalar(&self) -> bool {
-        match self {
-            Self::Armijo { gamma: _, beta: _ } => true,
-            Self::PowellWolfe { gamma: _, beta: _ } => true,
-            Self::AdaGrad { gamma: _, beta: _ } => false,
-            Self::AdaDelta { gamma: _, beta: _ } => false,
-        }
-    }
 }
 
 /// A descent algorithm using some step size method.
@@ -221,7 +212,7 @@ pub fn descent<X, F, G>(
     gradf: G,
     x0: &X,
     params: &DescentParameter<X::Elem>,
-    eps: X::Elem,
+    gtol: X::Elem,
     maxiter: usize,
 ) -> Result<X, TuutalError<X>>
 where
@@ -230,169 +221,18 @@ where
     F: Fn(&X) -> X::Elem,
     G: Fn(&X) -> X,
 {
-    let mut desc = Descent::new(f, gradf, x0.clone(), *params, eps);
-    desc.optimize(Some(maxiter))
-}
-
-/// Represents the sequence of iterates computed by a steepest descent algorithm.
-pub struct Descent<X, F, G>
-where
-    X: Vector,
-    F: Fn(&X) -> X::Elem,
-    G: Fn(&X) -> X,
-{
-    f: F,
-    gradf: G,
-    params: DescentParameter<X::Elem>,
-    x: X,
-    eps: X::Elem,
-    iter: usize,
-    sigma: X,
-    accum_grad: X,
-    accum_update: X,
-    fcalls: usize,
-}
-
-impl<X, F, G> Descent<X, F, G>
-where
-    X: Vector,
-    F: Fn(&X) -> X::Elem,
-    G: Fn(&X) -> X,
-{
-    pub fn new(f: F, gradf: G, x: X, params: DescentParameter<X::Elem>, eps: X::Elem) -> Self
-    where
-        X: Vector,
-        for<'a> &'a X: Add<X, Output = X>,
-    {
-        let dim = x.len();
-        if params.step_size_is_scalar() {
-            Self {
-                f,
-                gradf,
-                params,
-                x,
-                iter: 0,
-                eps,
-                sigma: X::zero(1),
-                accum_grad: X::zero(1),
-                accum_update: X::zero(1),
-                fcalls: 0,
-            }
-        } else {
-            Self {
-                f,
-                gradf,
-                params,
-                x,
-                iter: 0,
-                eps,
-                sigma: X::zero(dim),
-                accum_grad: X::zero(dim),
-                accum_update: X::zero(dim),
-                fcalls: 0,
-            }
+    match params {
+        DescentParameter::Armijo { gamma, beta } => {
+            Armijo::new(f, gradf, x0.clone(), *gamma, *beta, gtol).optimize(Some(maxiter))
         }
-    }
-    /// Reference to the objective function
-    pub(crate) fn obj(&self) -> &F {
-        &self.f
-    }
-    /// Reference to the gradient of the objective function
-    pub(crate) fn grad_obj(&self) -> &G {
-        &self.gradf
-    }
-    /// Number of iterations done so far.
-    pub fn nb_iter(&self) -> usize {
-        self.iter
-    }
-    /// Current iterate.
-    pub fn x(&self) -> &X {
-        &self.x
-    }
-    /// Current step size.
-    pub fn sigma(&self) -> &X {
-        &self.sigma
-    }
-}
-
-impl<X, F, G> core::iter::Iterator for Descent<X, F, G>
-where
-    X: Vector + Clone + VecDot<Output = X::Elem>,
-    for<'a> &'a X: Add<X, Output = X> + Mul<&'a X, Output = X> + Mul<X, Output = X>,
-    F: Fn(&X) -> X::Elem,
-    G: Fn(&X) -> X,
-{
-    type Item = X;
-    fn next(&mut self) -> Option<Self::Item> {
-        let neg_gradfx = -self.grad_obj()(&self.x);
-        let squared_norm_2_gradfx = neg_gradfx.dot(&neg_gradfx);
-        if squared_norm_2_gradfx <= (self.eps * self.eps) {
-            self.iter += 1;
-            None
-        } else {
-            let mut fcalls = self.fcalls;
-            self.sigma = match self.params {
-                DescentParameter::Armijo { gamma, beta } => [armijo(
-                    self.obj(),
-                    &self.x,
-                    &neg_gradfx,
-                    squared_norm_2_gradfx,
-                    gamma,
-                    beta,
-                    &mut fcalls,
-                )
-                .1]
-                .into_iter()
-                .collect::<X>(),
-                DescentParameter::PowellWolfe { gamma, beta } => [powell_wolfe(
-                    (self.obj(), self.grad_obj()),
-                    &self.x,
-                    &neg_gradfx,
-                    squared_norm_2_gradfx,
-                    gamma,
-                    beta,
-                    &mut fcalls,
-                )
-                .1]
-                .into_iter()
-                .collect::<X>(),
-                DescentParameter::AdaGrad { gamma, beta } => {
-                    let squared_grad = &neg_gradfx * &neg_gradfx;
-                    adagrad(&mut self.accum_grad, squared_grad, gamma, beta)
-                }
-                DescentParameter::AdaDelta { gamma, beta } => {
-                    let squared_grad = &neg_gradfx * &neg_gradfx;
-                    let step_size = adadelta(
-                        &mut self.accum_grad,
-                        &self.accum_update,
-                        &squared_grad,
-                        gamma,
-                        beta,
-                    );
-                    self.accum_update = gamma * &self.accum_update
-                        + (X::Elem::one() - gamma) * (&step_size * &step_size) * squared_grad;
-                    step_size
-                }
-            };
-            self.x = &self.x + &self.sigma * neg_gradfx;
-            self.iter += 1;
-            Some(self.x.clone())
+        DescentParameter::PowellWolfe { gamma, beta } => {
+            PowellWolfe::new(f, gradf, x0.clone(), *gamma, *beta, gtol).optimize(Some(maxiter))
         }
-    }
-}
-
-impl<X, F, G> Optimizer for Descent<X, F, G>
-where
-    X: Vector + Clone + VecDot<Output = X::Elem>,
-    for<'a> &'a X: Add<X, Output = X> + Mul<&'a X, Output = X> + Mul<X, Output = X>,
-    F: Fn(&X) -> X::Elem,
-    G: Fn(&X) -> X,
-{
-    type Iterate = X;
-    fn nb_iter(&self) -> usize {
-        self.nb_iter()
-    }
-    fn iterate(&self) -> X {
-        self.x.clone()
+        DescentParameter::AdaDelta { gamma, beta } => {
+            AdaDelta::new(f, gradf, x0.clone(), *gamma, *beta, gtol).optimize(Some(maxiter))
+        }
+        DescentParameter::AdaGrad { gamma, beta } => {
+            AdaGrad::new(f, gradf, x0.clone(), *gamma, *beta, gtol).optimize(Some(maxiter))
+        }
     }
 }

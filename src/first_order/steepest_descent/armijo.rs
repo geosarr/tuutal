@@ -1,40 +1,12 @@
 use core::ops::{Add, Mul};
 
 use crate::{
-    first_order::macros::{descent_rule, impl_iterator_descent},
-    traits::{Scalar, VecDot, Vector},
-    Counter,
+    first_order::macros::{descent_rule, impl_optimizer_descent},
+    traits::{VecDot, Vector},
+    Counter, Optimizer,
 };
 use hashbrown::HashMap;
 use num_traits::{Float, One, Zero};
-
-/// Computes a step size using the Armijo method.
-pub(crate) fn armijo<F, A, X>(
-    f: &F,
-    x: &X,
-    neg_gradfx: &X,
-    squared_norm_2_gradfx: A,
-    gamma: A,
-    beta: A,
-    fcalls: &mut usize,
-) -> (X, A)
-where
-    A: Scalar<X>,
-    F: Fn(&X) -> A,
-    X: VecDot<X, Output = A> + Add<X, Output = X>,
-    for<'a> &'a X: Add<X, Output = X>,
-{
-    let mut sigma = A::one();
-    let mut x_next = x + sigma * neg_gradfx;
-    let fx = f(x);
-    *fcalls += 1;
-    while f(&x_next) - fx > -sigma * gamma * squared_norm_2_gradfx {
-        sigma = beta * sigma;
-        x_next = x + sigma * neg_gradfx;
-        *fcalls += 1;
-    }
-    (x_next, sigma)
-}
 
 descent_rule!(
     Armijo,
@@ -42,7 +14,7 @@ descent_rule!(
     [X::Elem::zero()],
     [].into()
 );
-impl_iterator_descent!(Armijo, [<X as Vector>::Elem; 1]);
+impl_optimizer_descent!(Armijo, [<X as Vector>::Elem; 1]);
 
 impl<'a, X, F, G> Armijo<'a, X, F, G, [X::Elem; 1]>
 where
@@ -64,6 +36,6 @@ where
             x_next = &self.x + sigma * &self.neg_gradfx;
         }
         self.x = x_next;
-        self.sigma = [sigma];
+        self.sigma[0] = sigma;
     }
 }

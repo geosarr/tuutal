@@ -23,7 +23,7 @@ mod traits;
 mod utils;
 
 pub use error::{RootFindingError, TuutalError};
-pub use first_order::{descent, Descent, DescentParameter};
+pub use first_order::{descent, Armijo, DescentParameter, PowellWolfe};
 pub use ndarray::{array, s, Array1, Array2};
 
 use num_traits::Num;

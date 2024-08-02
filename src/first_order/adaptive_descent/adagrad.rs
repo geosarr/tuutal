@@ -1,30 +1,16 @@
-use core::ops::{Add, Div, Mul};
+use core::ops::{Add, Mul};
 
 use num_traits::Float;
 
 use crate::{
     first_order::{
         adaptive_descent::ACCUM_GRAD,
-        macros::{descent_rule, impl_iterator_descent},
+        macros::{descent_rule, impl_optimizer_descent},
     },
     traits::{VecDot, Vector},
-    Counter,
+    Counter, Optimizer,
 };
 use hashbrown::HashMap;
-
-pub(crate) fn adagrad<A, X>(accum_grad: &mut X, squared_grad: X, gamma: A, epsilon: A) -> X
-where
-    for<'a> A: Float + Add<&'a X, Output = X> + Div<X, Output = X>,
-    for<'b> &'b X: Add<X, Output = X>,
-    X: FromIterator<A> + IntoIterator<Item = A> + Clone,
-{
-    *accum_grad = &*accum_grad + squared_grad;
-    gamma
-        / (epsilon + &*accum_grad)
-            .into_iter()
-            .map(|g| g.sqrt())
-            .collect::<X>()
-}
 
 descent_rule!(
     AdaGrad,
@@ -32,7 +18,7 @@ descent_rule!(
     [].into_iter().collect::<X>(),
     [(ACCUM_GRAD, X::zero(1))].into()
 );
-impl_iterator_descent!(AdaGrad, X);
+impl_optimizer_descent!(AdaGrad, X);
 
 impl<'a, X, F, G> AdaGrad<'a, X, F, G, X>
 where

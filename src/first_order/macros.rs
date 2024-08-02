@@ -72,16 +72,16 @@ macro_rules! descent_rule {
     };
 }
 
-macro_rules! impl_iterator_descent {
+macro_rules! impl_optimizer_descent {
     ($rule:ident, $step:ty) => {
         impl<'a, X, F, G> core::iter::Iterator for $rule<'a, X, F, G, $step>
         where
-            X: Vector + VecDot<Output = X::Elem>,
+            X: Vector + VecDot<Output = X::Elem> + Clone,
             for<'b> &'b X: Add<X, Output = X> + Mul<&'b X, Output = X>,
             F: Fn(&X) -> X::Elem,
             G: Fn(&X) -> X,
         {
-            type Item = X::Elem;
+            type Item = X;
             fn next(&mut self) -> Option<Self::Item> {
                 if self.stop() {
                     None
@@ -91,12 +91,31 @@ macro_rules! impl_iterator_descent {
                     self.counter.iter += 1;
                     self.neg_gradfx = -self.grad(&self.x);
                     self.counter.gcalls += 1;
-                    Some(self.stop_metrics)
+                    Some(self.x.clone())
                 }
+            }
+        }
+        impl<'a, X, F, G> Optimizer for $rule<'a, X, F, G, $step>
+        where
+            X: Vector + VecDot<Output = X::Elem> + Clone,
+            for<'b> &'b X: Add<X, Output = X> + Mul<&'b X, Output = X>,
+            F: Fn(&X) -> X::Elem,
+            G: Fn(&X) -> X,
+        {
+            type Iterate = X;
+            type Intermediate = HashMap<&'a str, $step>;
+            fn nb_iter(&self) -> usize {
+                self.counter.iter
+            }
+            fn iterate(&self) -> X {
+                self.x.clone()
+            }
+            fn intermediate(&self) -> Self::Intermediate {
+                HashMap::from([("sigma", self.sigma.clone())])
             }
         }
     };
 }
 
 pub(crate) use descent_rule;
-pub(crate) use impl_iterator_descent;
+pub(crate) use impl_optimizer_descent;
