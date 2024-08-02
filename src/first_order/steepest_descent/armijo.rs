@@ -1,10 +1,12 @@
-use core::ops::Add;
+use core::ops::{Add, Mul};
 
 use crate::{
-    first_order::macros::steepest_descent_rule,
+    first_order::macros::{descent_rule, impl_iterator_descent},
     traits::{Scalar, VecDot, Vector},
+    Counter,
 };
-use num_traits::One;
+use hashbrown::HashMap;
+use num_traits::{Float, One, Zero};
 
 /// Computes a step size using the Armijo method.
 pub(crate) fn armijo<F, A, X>(
@@ -29,31 +31,39 @@ where
     while f(&x_next) - fx > -sigma * gamma * squared_norm_2_gradfx {
         sigma = beta * sigma;
         x_next = x + sigma * neg_gradfx;
-        *fcalls += 1
+        *fcalls += 1;
     }
     (x_next, sigma)
 }
 
-steepest_descent_rule!(Armijo);
+descent_rule!(
+    Armijo,
+    [<X as Vector>::Elem; 1],
+    [X::Elem::zero()],
+    [].into()
+);
+impl_iterator_descent!(Armijo, [<X as Vector>::Elem; 1]);
 
-impl<X, F, G> Armijo<X, F, G>
+impl<'a, X, F, G> Armijo<'a, X, F, G, [X::Elem; 1]>
 where
     X: Vector + VecDot<X, Output = X::Elem>,
-    for<'a> &'a X: Add<X, Output = X>,
+    for<'b> &'b X: Add<X, Output = X>,
     F: Fn(&X) -> X::Elem,
     G: Fn(&X) -> X,
 {
-    pub(crate) fn step(&mut self, neg_gradfx: &X, squared_norm_2_gradfx: X::Elem) {
+    pub(crate) fn step(&mut self) {
         let mut sigma = X::Elem::one();
-        let mut x_next = &self.x + sigma * neg_gradfx;
+        let mut x_next = &self.x + sigma * &self.neg_gradfx;
         let fx = self.func(&self.x);
-        self.fcalls += 1;
-        while self.func(&x_next) - fx > -sigma * self.gamma * squared_norm_2_gradfx {
-            sigma = self.beta * sigma;
-            x_next = &self.x + sigma * neg_gradfx;
-            self.fcalls += 1;
+        self.counter.fcalls += 1;
+        let (gamma, beta) = (self.hyper_params["gamma"], self.hyper_params["beta"]);
+        // NB: self.stop_metrics is the squared L2-norm of gradf(&x).
+        while self.func(&x_next) - fx > -sigma * gamma * self.stop_metrics {
+            self.counter.fcalls += 1;
+            sigma = beta * sigma;
+            x_next = &self.x + sigma * &self.neg_gradfx;
         }
         self.x = x_next;
-        self.sigma = sigma;
+        self.sigma = [sigma];
     }
 }

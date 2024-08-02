@@ -394,7 +394,7 @@ where
     }
 }
 
-impl<A, F> Optimizer<Array1<A>> for PowellIterates<F, A>
+impl<A, F> Optimizer for PowellIterates<F, A>
 where
     A: Scalar<Array1<A>> + core::fmt::Debug,
     F: Fn(&Array1<A>) -> A,

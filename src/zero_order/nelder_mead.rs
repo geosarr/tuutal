@@ -600,7 +600,7 @@ where
     }
 }
 
-impl<A, F> Optimizer<Array1<A>> for NelderMeadIterates<F, A>
+impl<A, F> Optimizer for NelderMeadIterates<F, A>
 where
     F: Fn(&Array1<A>) -> A,
     A: Scalar<Array1<A>>,

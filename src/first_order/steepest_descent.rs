@@ -1,14 +1,11 @@
-mod adadelta;
-mod adagrad;
 mod armijo;
 mod powell_wolfe;
 mod unit_test;
+use crate::first_order::adaptive_descent::{adadelta, adagrad};
 use crate::{
     traits::{VecDot, Vector},
     Number, Optimizer, TuutalError,
 };
-use adadelta::adadelta;
-use adagrad::adagrad;
 use armijo::armijo;
 use core::{
     fmt::Debug,
@@ -17,7 +14,7 @@ use core::{
 use num_traits::One;
 use powell_wolfe::powell_wolfe;
 
-/// Parameters used in the steepest descent method.
+/// Parameters used in the a descent method.
 ///
 /// The **gamma** parameter represents the:
 /// - magnitude of decrease in the objective function in the negative gradient direction for Armijo and Powell rules.
@@ -31,15 +28,15 @@ use powell_wolfe::powell_wolfe;
 ///
 /// Use methods [`new_armijo`], [`new_powell_wolfe`], [`new_adagrad`] and [`new_adadelta`], to construct these parameters.
 ///
-/// [`new_armijo`]: SteepestDescentParameter::new_armijo
+/// [`new_armijo`]: DescentParameter::new_armijo
 ///
-/// [`new_powell_wolfe`]: SteepestDescentParameter::new_powell_wolfe
+/// [`new_powell_wolfe`]: DescentParameter::new_powell_wolfe
 ///
-/// [`new_adagrad`]: SteepestDescentParameter::new_adagrad
+/// [`new_adagrad`]: DescentParameter::new_adagrad
 ///
-/// [`new_adadelta`]: SteepestDescentParameter::new_adadelta
+/// [`new_adadelta`]: DescentParameter::new_adadelta
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub enum SteepestDescentParameter<T> {
+pub enum DescentParameter<T> {
     /// Armijo rule step size rule
     ///
     /// At each step t, the step size is a scalar.
@@ -67,7 +64,7 @@ pub enum SteepestDescentParameter<T> {
     AdaDelta { gamma: T, beta: T },
 }
 
-impl<T> Default for SteepestDescentParameter<T>
+impl<T> Default for DescentParameter<T>
 where
     T: Number,
 {
@@ -79,7 +76,7 @@ where
     }
 }
 
-impl<T> SteepestDescentParameter<T>
+impl<T> DescentParameter<T>
 where
     T: Number,
 {
@@ -91,8 +88,8 @@ where
     /// - 0. < beta < 1.
     ///
     /// ```
-    /// use tuutal::SteepestDescentParameter;
-    /// let param = SteepestDescentParameter::new_armijo(0.1f32, 0.016f32);
+    /// use tuutal::DescentParameter;
+    /// let param = DescentParameter::new_armijo(0.1f32, 0.016f32);
     /// ```
     pub fn new_armijo(gamma: T, beta: T) -> Self {
         assert!(
@@ -113,8 +110,8 @@ where
     /// - gamma < beta < 1.
     ///
     /// ```
-    /// use tuutal::SteepestDescentParameter;
-    /// let param = SteepestDescentParameter::new_powell_wolfe(0.01f32, 0.75f32);
+    /// use tuutal::DescentParameter;
+    /// let param = DescentParameter::new_powell_wolfe(0.01f32, 0.75f32);
     /// ```
     pub fn new_powell_wolfe(gamma: T, beta: T) -> Self {
         assert!(
@@ -134,8 +131,8 @@ where
     /// - 0. < gamma.
     /// - beta > 0.
     /// ```
-    /// use tuutal::SteepestDescentParameter;
-    /// let param = SteepestDescentParameter::new_adagrad(0.01f32, 0.0001);
+    /// use tuutal::DescentParameter;
+    /// let param = DescentParameter::new_adagrad(0.01f32, 0.0001);
     /// ```
     pub fn new_adagrad(gamma: T, beta: T) -> Self {
         assert!(gamma > T::zero());
@@ -149,8 +146,8 @@ where
     /// - 0. < gamma < 1.
     /// - beta > 0.
     /// ```
-    /// use tuutal::SteepestDescentParameter;
-    /// let param = SteepestDescentParameter::new_adadelta(0.2f32, 0.04);
+    /// use tuutal::DescentParameter;
+    /// let param = DescentParameter::new_adadelta(0.2f32, 0.04);
     /// ```
     pub fn new_adadelta(gamma: T, beta: T) -> Self {
         assert!(gamma > T::zero() && gamma < T::one());
@@ -167,41 +164,42 @@ where
     }
 }
 
-/// The steepest descent algorithm using some step size method.
+/// A descent algorithm using some step size method.
+///
 /// It requires an initial guess x<sub>0</sub>.
 /// ```
-/// use tuutal::{array, steepest_descent, SteepestDescentParameter, Array1};
+/// use tuutal::{array, descent, DescentParameter, Array1};
 /// // Example from python scipy.optimize.minimize_scalar
 /// let f = |x: &Array1<f32>| (x[0] - 2.) * x[0] * (x[0] + 2.).powi(2);
 /// let gradf = |x: &Array1<f32>| array![2. * (x[0] + 2.) * (2. * x[0].powi(2) - x[0] - 1.)];
 /// let x0 = &array![-1.];
 ///
-/// let x_star = steepest_descent(
+/// let x_star = descent(
 ///     f,
 ///     gradf,
 ///     &x0,
-///     &SteepestDescentParameter::new_armijo(1e-2, 0.25),
+///     &DescentParameter::new_armijo(1e-2, 0.25),
 ///     1e-3,
 ///     10,
 /// ).unwrap();
 /// assert!((-2. - x_star[0]).abs() < 1e-10);
 ///
-/// let x_star = steepest_descent(
+/// let x_star = descent(
 ///     &f,
 ///     &gradf,
 ///     &x0,
-///     &SteepestDescentParameter::new_powell_wolfe(1e-2, 0.9),
+///     &DescentParameter::new_powell_wolfe(1e-2, 0.9),
 ///     1e-3,
 ///     10,
 /// ).unwrap();
 /// assert!((-2. - x_star[0]).abs() < 1e-10);
 ///
 /// let x0 = &array![-0.5];
-/// let x_star = steepest_descent(f, gradf, &x0, &Default::default(), 1e-3, 10).unwrap();
+/// let x_star = descent(f, gradf, &x0, &Default::default(), 1e-3, 10).unwrap();
 /// assert!((-0.5 - x_star[0]).abs() < 1e-10);
 ///
 /// let x0 = &array![0.];
-/// let x_star = steepest_descent(f, gradf, &x0, &Default::default(), 1e-3, 10).unwrap();
+/// let x_star = descent(f, gradf, &x0, &Default::default(), 1e-3, 10).unwrap();
 /// assert!((1. - x_star[0]).abs() < 1e-10);
 ///
 /// // It also takes multivariate objective functions
@@ -214,15 +212,15 @@ where
 ///     ]
 /// };
 /// let x = array![1f32, -0.5f32];
-/// let opt = steepest_descent(f, gradf, &x, &Default::default(), 1e-3, 10000).unwrap();
+/// let opt = descent(f, gradf, &x, &Default::default(), 1e-3, 10000).unwrap();
 /// assert!((opt[0] - 1.).abs() <= 1e-2);
 /// assert!((opt[1] - 1.).abs() <= 1e-2);
 /// ```
-pub fn steepest_descent<X, F, G>(
+pub fn descent<X, F, G>(
     f: F,
     gradf: G,
     x0: &X,
-    params: &SteepestDescentParameter<X::Elem>,
+    params: &DescentParameter<X::Elem>,
     eps: X::Elem,
     maxiter: usize,
 ) -> Result<X, TuutalError<X>>
@@ -232,12 +230,12 @@ where
     F: Fn(&X) -> X::Elem,
     G: Fn(&X) -> X,
 {
-    let mut descent = SteepestDescentIterates::new(f, gradf, x0.clone(), *params, eps);
-    descent.optimize(Some(maxiter))
+    let mut desc = Descent::new(f, gradf, x0.clone(), *params, eps);
+    desc.optimize(Some(maxiter))
 }
 
 /// Represents the sequence of iterates computed by a steepest descent algorithm.
-pub struct SteepestDescentIterates<X, F, G>
+pub struct Descent<X, F, G>
 where
     X: Vector,
     F: Fn(&X) -> X::Elem,
@@ -245,7 +243,7 @@ where
 {
     f: F,
     gradf: G,
-    params: SteepestDescentParameter<X::Elem>,
+    params: DescentParameter<X::Elem>,
     x: X,
     eps: X::Elem,
     iter: usize,
@@ -255,19 +253,13 @@ where
     fcalls: usize,
 }
 
-impl<X, F, G> SteepestDescentIterates<X, F, G>
+impl<X, F, G> Descent<X, F, G>
 where
     X: Vector,
     F: Fn(&X) -> X::Elem,
     G: Fn(&X) -> X,
 {
-    pub fn new(
-        f: F,
-        gradf: G,
-        x: X,
-        params: SteepestDescentParameter<X::Elem>,
-        eps: X::Elem,
-    ) -> Self
+    pub fn new(f: F, gradf: G, x: X, params: DescentParameter<X::Elem>, eps: X::Elem) -> Self
     where
         X: Vector,
         for<'a> &'a X: Add<X, Output = X>,
@@ -323,7 +315,7 @@ where
     }
 }
 
-impl<X, F, G> core::iter::Iterator for SteepestDescentIterates<X, F, G>
+impl<X, F, G> core::iter::Iterator for Descent<X, F, G>
 where
     X: Vector + Clone + VecDot<Output = X::Elem>,
     for<'a> &'a X: Add<X, Output = X> + Mul<&'a X, Output = X> + Mul<X, Output = X>,
@@ -340,7 +332,7 @@ where
         } else {
             let mut fcalls = self.fcalls;
             self.sigma = match self.params {
-                SteepestDescentParameter::Armijo { gamma, beta } => [armijo(
+                DescentParameter::Armijo { gamma, beta } => [armijo(
                     self.obj(),
                     &self.x,
                     &neg_gradfx,
@@ -352,7 +344,7 @@ where
                 .1]
                 .into_iter()
                 .collect::<X>(),
-                SteepestDescentParameter::PowellWolfe { gamma, beta } => [powell_wolfe(
+                DescentParameter::PowellWolfe { gamma, beta } => [powell_wolfe(
                     (self.obj(), self.grad_obj()),
                     &self.x,
                     &neg_gradfx,
@@ -364,11 +356,11 @@ where
                 .1]
                 .into_iter()
                 .collect::<X>(),
-                SteepestDescentParameter::AdaGrad { gamma, beta } => {
+                DescentParameter::AdaGrad { gamma, beta } => {
                     let squared_grad = &neg_gradfx * &neg_gradfx;
                     adagrad(&mut self.accum_grad, squared_grad, gamma, beta)
                 }
-                SteepestDescentParameter::AdaDelta { gamma, beta } => {
+                DescentParameter::AdaDelta { gamma, beta } => {
                     let squared_grad = &neg_gradfx * &neg_gradfx;
                     let step_size = adadelta(
                         &mut self.accum_grad,
@@ -389,7 +381,7 @@ where
     }
 }
 
-impl<X, F, G> Optimizer<X> for SteepestDescentIterates<X, F, G>
+impl<X, F, G> Optimizer for Descent<X, F, G>
 where
     X: Vector + Clone + VecDot<Output = X::Elem>,
     for<'a> &'a X: Add<X, Output = X> + Mul<&'a X, Output = X> + Mul<X, Output = X>,

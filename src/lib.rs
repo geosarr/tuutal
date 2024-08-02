@@ -6,7 +6,7 @@
 //! [scipy]: https://docs.scipy.org/doc/scipy-1.13.1/reference/optimize.html
 //! [ndarr]: https://crates.io/crates/ndarray
 
-#![no_std]
+// #![no_std]
 
 /// A set of error handling objects.
 pub mod error;
@@ -23,9 +23,10 @@ mod traits;
 mod utils;
 
 pub use error::{RootFindingError, TuutalError};
-pub use first_order::{steepest_descent, SteepestDescentIterates, SteepestDescentParameter};
+pub use first_order::{descent, Descent, DescentParameter};
 pub use ndarray::{array, s, Array1, Array2};
 
+use num_traits::Num;
 #[allow(unused)]
 pub(crate) use utils::{is_between, l2_diff};
 
@@ -37,18 +38,22 @@ pub use zero_order::{
 
 pub(crate) use zero_order::Bounds;
 
-// /// Generic function to launch an optimization routine when intermediate iterates are not needed.
-// pub(crate) fn optimize<X: Clone, I: Optimizer>(
-//     mut iterable: I,
-//     maxiter: usize,
-// ) -> Result<X, TuutalError<X>> {
-//     while let Some(x) = iterable.next() {
-//         if iterable.nb_iter() > maxiter {
-//             return Err(TuutalError::Convergence {
-//                 iterate: x,
-//                 maxiter,
-//             });
-//         }
-//     }
-//     Ok(iterable.iterate())
-// }
+#[derive(Debug)]
+pub(crate) struct Counter<T = usize> {
+    iter: T,
+    fcalls: T,
+    gcalls: T,
+}
+
+impl<T> Counter<T>
+where
+    T: Num,
+{
+    pub(crate) fn new() -> Self {
+        Self {
+            iter: T::zero(),
+            fcalls: T::zero(),
+            gcalls: T::zero(),
+        }
+    }
+}

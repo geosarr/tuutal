@@ -8,6 +8,7 @@ edition = "2021"
 ndarray = { version = "0.15.6", default-features = false }
 # thiserror = "1.0.61"
 thiserror-no-std = "2.0.2"
+hashbrown = "0.14"
 num-traits = { version = "0.2.19", default-features = false, features = ["libm"] }
 
 

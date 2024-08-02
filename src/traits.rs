@@ -98,7 +98,7 @@ where
 }
 
 /// Implements an iterator counting the number of iterations done so far and a full optimization routine.
-pub trait Optimizer<X>: core::iter::Iterator<Item = Self::Iterate> {
+pub trait Optimizer: core::iter::Iterator<Item = Self::Iterate> {
     type Iterate;
     /// Number of iterations done so far.
     fn nb_iter(&self) -> usize;

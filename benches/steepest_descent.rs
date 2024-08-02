@@ -3,7 +3,7 @@ extern crate test;
 extern crate tuutal;
 
 use test::Bencher;
-use tuutal::{s, steepest_descent, Array1, SteepestDescentParameter};
+use tuutal::{descent, s, Array1, DescentParameter};
 
 fn rosenbrock_nd() -> (
     impl Fn(&Array1<f32>) -> f32,
@@ -40,9 +40,9 @@ fn armijo_bench(bench: &mut Bencher) {
     let (f, gradf) = rosenbrock_nd();
     static LENGTH: usize = 500;
     let x0 = Array1::from_vec(vec![0_f32; LENGTH]);
-    let params = SteepestDescentParameter::new_armijo(0.01, 0.01);
+    let params = DescentParameter::new_armijo(0.01, 0.01);
     bench.iter(|| {
-        let _solution = steepest_descent(&f, &gradf, &x0, &params, 1e-6, 1000);
+        let _solution = descent(&f, &gradf, &x0, &params, 1e-6, 1000);
     });
 }
 
@@ -51,9 +51,9 @@ fn powell_wolfe_bench(bench: &mut Bencher) {
     let (f, gradf) = rosenbrock_nd();
     static LENGTH: usize = 500;
     let x0 = Array1::from_vec(vec![0_f32; LENGTH]);
-    let params = SteepestDescentParameter::new_powell_wolfe(0.01, 0.1);
+    let params = DescentParameter::new_powell_wolfe(0.01, 0.1);
     bench.iter(|| {
-        let _solution = steepest_descent(&f, &gradf, &x0, &params, 1e-6, 1000);
+        let _solution = descent(&f, &gradf, &x0, &params, 1e-6, 1000);
     });
 }
 
@@ -62,9 +62,9 @@ fn adagrad_bench(bench: &mut Bencher) {
     let (f, gradf) = rosenbrock_nd();
     static LENGTH: usize = 500;
     let x0 = Array1::from_vec(vec![0_f32; LENGTH]);
-    let params = SteepestDescentParameter::new_adagrad(0.1, 0.0001);
+    let params = DescentParameter::new_adagrad(0.1, 0.0001);
     bench.iter(|| {
-        let _solution = steepest_descent(&f, &gradf, &x0, &params, 1e-6, 1000);
+        let _solution = descent(&f, &gradf, &x0, &params, 1e-6, 1000);
     });
 }
 
@@ -73,8 +73,8 @@ fn adadelta_bench(bench: &mut Bencher) {
     let (f, gradf) = rosenbrock_nd();
     static LENGTH: usize = 500;
     let x0 = Array1::from_vec(vec![0_f32; LENGTH]);
-    let params = SteepestDescentParameter::new_adadelta(0.1, 0.0001);
+    let params = DescentParameter::new_adadelta(0.1, 0.0001);
     bench.iter(|| {
-        let _solution = steepest_descent(&f, &gradf, &x0, &params, 1e-6, 1000);
+        let _solution = descent(&f, &gradf, &x0, &params, 1e-6, 1000);
     });
 }
