@@ -3,7 +3,7 @@ extern crate quickcheck;
 extern crate tuutal;
 
 use core::cmp::min;
-use tuutal::{s, Armijo, Array1, Optimizer, PowellWolfe};
+use tuutal::{s, Armijo, Array1, Optimizer, PowellWolfe, VarName};
 
 quickcheck! {
     fn descent_armijo(xs: Vec<f32>) -> bool {
@@ -64,7 +64,8 @@ quickcheck! {
             let neg_gradfx_prev = -gradf(&x_prev);
             let gradfx_d = neg_gradfx_prev.dot(&neg_gradfx_prev);
             let intermed = iterates.intermediate();
-            assert!(f(&x_next) <= f(&x_prev) - intermed["sigma"][0] * gamma * gradfx_d);
+            let step_size = intermed[&VarName::StepSize][0];
+            assert!(f(&x_next) <= f(&x_prev) - step_size * gamma * gradfx_d);
             x_prev = x_next;
             iter += 1;
             if iter > 10 {

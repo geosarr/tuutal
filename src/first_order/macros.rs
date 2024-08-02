@@ -2,7 +2,7 @@ macro_rules! descent_rule {
     ($rule:ident, $step:ty, $sigma:expr, $accum:expr) => {
         #[derive(Debug)]
         #[allow(dead_code)]
-        pub struct $rule<'a, X, F, G, S>
+        pub struct $rule<X, F, G, S>
         where
             X: Vector,
         {
@@ -11,13 +11,13 @@ macro_rules! descent_rule {
             x: X,                                    // candidate solution
             neg_gradfx: X,                           // negative gradient of f at x,
             sigma: S,                                // step size
-            hyper_params: HashMap<&'a str, X::Elem>, // hyper-parameters of the algorithm like tolerance for convergence.
+            hyper_params: HashMap<VarName, X::Elem>, // hyper-parameters of the algorithm like tolerance for convergence.
             counter: Counter<usize>, // [nb of iterations, number of f calls, nb of gradf calls]
             stop_metrics: X::Elem,   // metrics used to stop the algorithm,
-            accumulators: HashMap<&'a str, X>, // accumulators during corresponding algorithms.
+            accumulators: HashMap<VarName, X>, // accumulators during corresponding algorithms.
         }
 
-        impl<'a, X, F, G> $rule<'a, X, F, G, $step>
+        impl<X, F, G> $rule<X, F, G, $step>
         where
             X: Vector,
         {
@@ -37,7 +37,7 @@ macro_rules! descent_rule {
                 g(x)
             }
             pub(crate) fn stop(&self) -> bool {
-                self.stop_metrics <= self.hyper_params["eps"].powi(2)
+                self.stop_metrics <= self.hyper_params[&VarName::Epsilon].powi(2)
             }
 
             pub fn new(f: F, gradf: G, x: X, gamma: X::Elem, beta: X::Elem, eps: X::Elem) -> Self
@@ -52,7 +52,12 @@ macro_rules! descent_rule {
                     x,
                     neg_gradfx: neg_gradfx,
                     sigma: $sigma,
-                    hyper_params: [("gamma", gamma), ("beta", beta), ("eps", eps)].into(),
+                    hyper_params: [
+                        (VarName::Gamma, gamma),
+                        (VarName::Beta, beta),
+                        (VarName::Epsilon, eps),
+                    ]
+                    .into(),
                     counter: Counter::new(),
                     stop_metrics: X::Elem::infinity(),
                     accumulators: $accum,
@@ -74,7 +79,7 @@ macro_rules! descent_rule {
 
 macro_rules! impl_optimizer_descent {
     ($rule:ident, $step:ty) => {
-        impl<'a, X, F, G> core::iter::Iterator for $rule<'a, X, F, G, $step>
+        impl<X, F, G> core::iter::Iterator for $rule<X, F, G, $step>
         where
             X: Vector + VecDot<Output = X::Elem> + Clone,
             for<'b> &'b X: Add<X, Output = X> + Mul<&'b X, Output = X>,
@@ -95,7 +100,7 @@ macro_rules! impl_optimizer_descent {
                 }
             }
         }
-        impl<'a, X, F, G> Optimizer for $rule<'a, X, F, G, $step>
+        impl<X, F, G> Optimizer for $rule<X, F, G, $step>
         where
             X: Vector + VecDot<Output = X::Elem> + Clone,
             for<'b> &'b X: Add<X, Output = X> + Mul<&'b X, Output = X>,
@@ -103,7 +108,7 @@ macro_rules! impl_optimizer_descent {
             G: Fn(&X) -> X,
         {
             type Iterate = X;
-            type Intermediate = HashMap<&'a str, $step>;
+            type Intermediate = HashMap<VarName, $step>;
             fn nb_iter(&self) -> usize {
                 self.counter.iter
             }
@@ -111,7 +116,7 @@ macro_rules! impl_optimizer_descent {
                 self.x.clone()
             }
             fn intermediate(&self) -> Self::Intermediate {
-                HashMap::from([("sigma", self.sigma.clone())])
+                HashMap::from([(VarName::StepSize, self.sigma.clone())])
             }
         }
     };

@@ -3,7 +3,7 @@ use core::ops::{Add, Mul};
 use crate::{
     first_order::macros::{descent_rule, impl_optimizer_descent},
     traits::{Number, VecDot, Vector},
-    Counter, Optimizer,
+    Counter, Optimizer, VarName,
 };
 use hashbrown::HashMap;
 use num_traits::{Float, One, Zero};
@@ -16,7 +16,7 @@ descent_rule!(
 );
 impl_optimizer_descent!(PowellWolfe, [X::Elem; 1]);
 
-impl<'a, X, F, G> PowellWolfe<'a, X, F, G, [X::Elem; 1]>
+impl<X, F, G> PowellWolfe<X, F, G, [X::Elem; 1]>
 where
     X: Vector + VecDot<X, Output = X::Elem> + Add<X, Output = X>,
     for<'b> &'b X: Add<X, Output = X>,
@@ -29,7 +29,10 @@ where
         let one_half = X::Elem::cast_from_f32(0.5);
         let fx = self.func(&self.x);
         self.counter.fcalls += 1;
-        let (gamma, beta) = (self.hyper_params["gamma"], self.hyper_params["beta"]);
+        let (gamma, beta) = (
+            self.hyper_params[&VarName::Gamma],
+            self.hyper_params[&VarName::Beta],
+        );
         // The first if and else conditions guarantee having a segment [sigma_minus, sigma_plus]
         // such that sigma_minus satisfies the armijo condition and sigma_plus does not
         // NB: self.stop_metrics is the squared L2-norm of gradf(&x).

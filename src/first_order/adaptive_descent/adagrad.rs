@@ -3,12 +3,9 @@ use core::ops::{Add, Mul};
 use num_traits::Float;
 
 use crate::{
-    first_order::{
-        adaptive_descent::ACCUM_GRAD,
-        macros::{descent_rule, impl_optimizer_descent},
-    },
+    first_order::macros::{descent_rule, impl_optimizer_descent},
     traits::{VecDot, Vector},
-    Counter, Optimizer,
+    Counter, Optimizer, VarName,
 };
 use hashbrown::HashMap;
 
@@ -16,11 +13,11 @@ descent_rule!(
     AdaGrad,
     X,
     [].into_iter().collect::<X>(),
-    [(ACCUM_GRAD, X::zero(1))].into()
+    [(VarName::AccumGrad, X::zero(1))].into()
 );
 impl_optimizer_descent!(AdaGrad, X);
 
-impl<'a, X, F, G> AdaGrad<'a, X, F, G, X>
+impl<X, F, G> AdaGrad<X, F, G, X>
 where
     X: Vector,
     for<'b> &'b X: Add<X, Output = X> + Mul<&'b X, Output = X>,
@@ -29,11 +26,16 @@ where
 {
     pub(crate) fn step(&mut self) {
         let squared_grad = &self.neg_gradfx * &self.neg_gradfx;
-        self.accumulators
-            .insert(ACCUM_GRAD, &self.accumulators[ACCUM_GRAD] + squared_grad);
-        let (gamma, beta) = (self.hyper_params["gamma"], self.hyper_params["beta"]);
+        self.accumulators.insert(
+            VarName::AccumGrad,
+            &self.accumulators[&VarName::AccumGrad] + squared_grad,
+        );
+        let (gamma, beta) = (
+            self.hyper_params[&VarName::Gamma],
+            self.hyper_params[&VarName::Beta],
+        );
         self.sigma = gamma
-            / (beta + &self.accumulators[ACCUM_GRAD])
+            / (beta + &self.accumulators[&VarName::AccumGrad])
                 .into_iter()
                 .map(|g| g.sqrt())
                 .collect::<X>();
