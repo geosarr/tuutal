@@ -11,8 +11,8 @@ are imported into this crate.
 # Implementations
 
 For now, the supported algorithms are:
-( - ) `Nelder-Mead`, `Powell` for multidimensional derivative-free optimization,
-( - ) `Unbounded and Bounded Brent`'s algorithms for unidimensional derivative-free optimization,
-( - ) `Brent`'s root finding algorithm for unidimensional functions
-( - ) `AdaGrad`, `AdaDelta` for adaptive step size,
-( - ) `Armijo` and `PowellWolfe` for steepest descent algorithms.
+  - `Nelder-Mead`, `Powell` for multidimensional derivative-free optimization,
+  - `Unbounded and Bounded Brent`'s algorithms for unidimensional derivative-free optimization,
+  - `Brent`'s root finding algorithm for unidimensional functions
+  - `AdaGrad`, `AdaDelta` for adaptive step size,
+  - `Armijo` and `Powell-Wolfe` for steepest descent algorithms.
