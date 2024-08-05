@@ -4,9 +4,8 @@ use pyo3::exceptions::{PyRuntimeError, PyValueError};
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
 use tuutal::{
-    brent_bounded as brent_bounded_rs, brent_root as brent_root_rs,
-    brent_unbounded as brent_unbounded_rs, brentq as brentq_rs, nelder_mead as nelder_mead_rs,
-    Array1, RootFindingError, TuutalError,
+    brent_bounded as brent_bounded_rs, brent_unbounded as brent_unbounded_rs, brentq as brentq_rs,
+    nelder_mead as nelder_mead_rs, Array1, RootFindingError, TuutalError,
 };
 
 #[pyfunction]
@@ -62,31 +61,6 @@ pub fn nelder_mead<'py>(
                 Ok(x.into_pyarray_bound(py))
             }
             err => Err(PyRuntimeError::new_err(err.to_string())), // Should never come this far.
-        },
-    }
-}
-/// Brent algorithm for scalar function root finding.
-#[pyfunction]
-pub fn brent_root(
-    py: Python,
-    f: PyObject,
-    a: f64,
-    b: f64,
-    xtol: f64,
-    rtol: f64,
-    maxiter: usize,
-    kwargs: Option<&Bound<'_, PyDict>>,
-) -> PyResult<(f64, f64, usize)> {
-    let func = wrap_scalar_func_scalar!(py, f, kwargs);
-    match brent_root_rs(func, a, b, xtol, rtol, maxiter) {
-        Ok(val) => Ok(val),
-        Err(error) => match error {
-            RootFindingError::Bracketing { a: x, b: y } => Err(PyValueError::new_err(format!(
-                "Bracketing condition f(a) * f(b) < 0, not satisfied by inputs a={x} and b={y}",
-            ))),
-            RootFindingError::Interpolation { a: x, b: y } => Err(PyValueError::new_err(format!(
-                "Interpolation cannot be performed since f(a) = f(b) for a={x} and b={y}",
-            ))),
         },
     }
 }

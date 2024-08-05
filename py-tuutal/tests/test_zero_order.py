@@ -1,4 +1,4 @@
-from tuutal import brent_bounded, brent_unbounded, brentq as brentq_rs, brent_root
+from tuutal import brent_bounded, brent_unbounded, brentq as brentq_rs
 
 from scipy.optimize._optimize import _minimize_scalar_bounded, _minimize_scalar_brent
 from scipy.optimize._zeros_py import brentq
@@ -31,8 +31,3 @@ def test_brentq():
     assert abs(rust[0] - py[1].root) < 1e-20
     assert abs(rust[1]) < 1e-7
     assert rust[2] == py[1].function_calls
-
-    # Less satisfying results.
-    rust = brent_root(f, a=-0.9, b=0.9, xtol=1e-4, rtol=1e-4, maxiter=1000)
-    assert abs(rust[0]) < 1e-4
-    assert abs(rust[0]) < 9e-4
