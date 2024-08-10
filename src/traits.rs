@@ -101,6 +101,7 @@ where
 pub trait Optimizer: core::iter::Iterator {
     type Iterate;
     type Intermediate;
+    type ObjectiveOutput;
     /// Number of iterations done so far.
     fn nb_iter(&self) -> usize;
     /// Current iterate.
@@ -109,7 +110,7 @@ pub trait Optimizer: core::iter::Iterator {
     fn optimize(
         &mut self,
         maxiter: Option<usize>,
-    ) -> Result<Self::Iterate, TuutalError<Self::Iterate>> {
+    ) -> Result<(Self::Iterate, Self::ObjectiveOutput), TuutalError<Self::Iterate>> {
         let maxiter = maxiter.unwrap_or(1000);
         while let Some(_) = self.next() {
             if self.nb_iter() > maxiter {
@@ -119,10 +120,12 @@ pub trait Optimizer: core::iter::Iterator {
                 });
             }
         }
-        Ok(self.iterate())
+        Ok((self.iterate(), self.objective_output()))
     }
-    /// Gives intermediate values during the algorithm like step size.
+    /// Gives current intermediate values during the algorithm like step size.
     fn intermediate(&self) -> Self::Intermediate;
+    /// Gives objective function output for current iterate.
+    fn objective_output(&mut self) -> Self::ObjectiveOutput;
 }
 
 /// Implements the notion of upper and lower bounds

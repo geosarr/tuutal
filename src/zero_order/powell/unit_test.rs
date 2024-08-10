@@ -49,9 +49,9 @@ mod tests {
     fn test_powell() {
         let f = |arr: &Array1<f32>| arr.dot(arr);
         let x0 = Array1::from_iter([-5., -5.]);
-        let x_star =
+        let (x_star, f_star) =
             powell::<_, (f32, f32), _>(f, &x0, None, Some(100), None, 1e-5, 1e-5, None).unwrap();
         assert!(l2_diff(&x_star, &Array1::from_iter([0., 0.])) < 1e-6);
-        assert!(f(&x_star) < 1e-6);
+        assert!(f_star < 1e-6);
     }
 }

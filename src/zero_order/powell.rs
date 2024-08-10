@@ -18,7 +18,7 @@ use super::{default_nb_iter, scalar::BrentOptResult};
 /// // Example from python scipy.optimize.minimize_scalar
 /// let f = |x: &Array1<f32>| (x[0] - 2.) * x[0] * (x[0] + 2.).powi(2);
 /// let x0 = &array![-1.];
-/// let x_star =
+/// let (x_star, f_star) =
 ///     powell::<_, (f32, f32), _>(f, &x0, None, Some(100), None, 1e-5, 1e-5, None)
 ///     .unwrap();
 /// assert!((x_star[0] - 1.280776).abs() <= 1e-4);
@@ -26,7 +26,7 @@ use super::{default_nb_iter, scalar::BrentOptResult};
 /// let f =
 ///     |arr: &Array1<f32>| 100. * (arr[1] - arr[0].powi(2)).powi(2) + (1. - arr[0]).powi(2);
 /// let x0 = array![1., -0.5];
-/// let x_star =
+/// let (x_star, f_star) =
 ///     powell::<_, (f32, f32), _>(f, &x0, None, Some(100), None, 1e-5, 1e-5, None)
 ///     .unwrap();
 /// assert!((x_star[0] - 1.).abs() <= 1e-5);
@@ -41,7 +41,7 @@ pub fn powell<A, B, F>(
     xtol: A,
     ftol: A,
     bounds: Option<B>,
-) -> Result<Array1<A>, TuutalError<Array1<A>>>
+) -> Result<(Array1<A>, A), TuutalError<Array1<A>>>
 where
     A: Scalar<Array1<A>> + core::fmt::Debug,
     B: Bound<A>,
@@ -272,7 +272,7 @@ impl<F, A> PowellIterates<F, A> {
         })
     }
 
-    pub(crate) fn obj(&self, x: &Array1<A>) -> A
+    pub(crate) fn func(&self, x: &Array1<A>) -> A
     where
         F: Fn(&Array1<A>) -> A,
     {
@@ -355,7 +355,7 @@ where
             self.iter += 1;
             return None; // TO change
         }
-        let fx2 = self.obj(&x2);
+        let fx2 = self.func(&x2);
         self.fcalls += 1;
         if fx > fx2 {
             let mut t = two * (fx + fx2 - two * self.fval);
@@ -401,6 +401,7 @@ where
 {
     type Iterate = Array1<A>;
     type Intermediate = ();
+    type ObjectiveOutput = A;
     fn nb_iter(&self) -> usize {
         self.iter
     }
@@ -408,4 +409,9 @@ where
         self.x.clone()
     }
     fn intermediate(&self) {}
+    fn objective_output(&mut self) -> Self::ObjectiveOutput {
+        let fx = self.func(&self.iterate());
+        self.fcalls += 1;
+        fx
+    }
 }

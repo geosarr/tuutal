@@ -20,7 +20,7 @@ mod tests {
         let armijo = DescentParameter::new_armijo(0.01, 0.5);
         let (f, gradf) = rosenbrock_2d();
         let x = Array1::from_iter([1f32, -0.5f32]);
-        let opt = descent(f, gradf, &x, armijo, 1e-4, Some(10000)).unwrap();
+        let (opt, _f_star) = descent(f, gradf, &x, armijo, 1e-4, Some(10000)).unwrap();
         let expected = Array1::from_iter([1., 1.]);
         assert!(l2_diff(&opt, &expected) < 1e-3);
     }
@@ -30,7 +30,7 @@ mod tests {
         let powolf = DescentParameter::new_powell_wolfe(0.0001, 0.9);
         let (f, gradf) = rosenbrock_2d();
         let x = Array1::from_iter([1f32, -0.5f32]);
-        let opt = descent(f, gradf, &x, powolf, 1e-4, Some(10000)).unwrap();
+        let (opt, _f_star) = descent(f, gradf, &x, powolf, 1e-4, Some(10000)).unwrap();
         let expected = Array1::from_iter([1., 1.]);
         assert!(l2_diff(&opt, &expected) < 1e-3);
     }
@@ -92,7 +92,7 @@ mod tests {
             ])
         };
         let x = Array1::from_iter([10f32, -15., -100.]);
-        let opt = descent(f, gradf, &x, powolf, 1e-4, Some(10000)).unwrap();
+        let (opt, _f_star) = descent(f, gradf, &x, powolf, 1e-4, Some(10000)).unwrap();
         let expected = Array1::from_iter([1., 1., 1.]);
         assert!(l2_diff(&opt, &expected) < 1e-3);
     }

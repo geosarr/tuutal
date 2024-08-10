@@ -104,6 +104,7 @@ macro_rules! impl_optimizer_descent {
         {
             type Iterate = X;
             type Intermediate = $step;
+            type ObjectiveOutput = X::Elem;
             fn nb_iter(&self) -> usize {
                 self.counter.iter
             }
@@ -112,6 +113,11 @@ macro_rules! impl_optimizer_descent {
             }
             fn intermediate(&self) -> Self::Intermediate {
                 self.sigma.clone()
+            }
+            fn objective_output(&mut self) -> Self::ObjectiveOutput {
+                let fx = self.func(&self.x);
+                self.counter.fcalls += 1;
+                fx
             }
         }
     };

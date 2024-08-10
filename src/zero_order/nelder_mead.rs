@@ -17,7 +17,7 @@ type SimplexParameterResult<A> = Result<(A, A, A, A), TuutalError<Array1<A>>>;
 /// // Example from python scipy.optimize.minimize_scalar
 /// let f = |x: &Array1<f32>| (x[0] - 2.) * x[0] * (x[0] + 2.).powi(2);
 /// let x0 = &array![-1.];
-/// let x_star =
+/// let (x_star, f_star) =
 ///     nelder_mead::<_, (f32, f32), _>(f, &x0, None, Some(100), None, 1e-5, 1e-5, true, None)
 ///     .unwrap();
 /// assert!((-2. - x_star[0]).abs() <= 2e-4);
@@ -25,7 +25,7 @@ type SimplexParameterResult<A> = Result<(A, A, A, A), TuutalError<Array1<A>>>;
 /// let f =
 ///     |arr: &Array1<f32>| 100. * (arr[1] - arr[0].powi(2)).powi(2) + (1. - arr[0]).powi(2);
 /// let x0 = array![1., -0.5];
-/// let x_star =
+/// let (x_star, f_star) =
 ///     nelder_mead::<_, (f32, f32), _>(f, &x0, None, Some(100), None, 1e-5, 1e-5, true, None)
 ///     .unwrap();
 /// assert!((1. - x_star[0]).abs() <= 1e-3);
@@ -41,7 +41,7 @@ pub fn nelder_mead<A, B, F>(
     fatol: A,
     adaptive: bool,
     bounds: Option<B>,
-) -> Result<Array1<A>, TuutalError<Array1<A>>>
+) -> Result<(Array1<A>, A), TuutalError<Array1<A>>>
 where
     A: Scalar<Array1<A>>,
     B: Bound<A>,
@@ -401,7 +401,7 @@ impl<F, A> NelderMeadIterates<F, A> {
     }
 
     /// Computes the objective function value for a given input vector.
-    pub fn obj(&self, x: &Array1<A>) -> A
+    pub fn func(&self, x: &Array1<A>) -> A
     where
         F: Fn(&Array1<A>) -> A,
     {
@@ -519,7 +519,6 @@ where
     type Item = Array1<A>;
     fn next(&mut self) -> Option<Self::Item> {
         if self.convergence {
-            self.iter += 1;
             return None; // TODO
         } else if self.stop() {
             self.convergence = true;
@@ -533,7 +532,7 @@ where
         let one = A::cast_from_f32(1.);
         let xbar = self.centroid().unwrap(); // Is it allways safe to .unwrap()?
         let xr = self.affine(&xbar, self.rho, one);
-        let fxr = self.obj(&xr);
+        let fxr = self.func(&xr);
         self.fcalls += 1;
         let mut doshrink = false;
         let last = self.sim.nrows() - 1;
@@ -543,7 +542,7 @@ where
                 return None; // TODO
             }
             let xe = self.affine(&xbar, self.rho, self.chi);
-            let fxe = self.obj(&xe);
+            let fxe = self.func(&xe);
             self.fcalls += 1;
             if fxe < fxr {
                 self.sim.row_mut(last).assign(&xe);
@@ -561,7 +560,7 @@ where
                 return None; // TODO
             }
             let xc = self.affine(&xbar, self.psi, self.rho);
-            let fxc = self.obj(&xc);
+            let fxc = self.func(&xc);
             self.fcalls += 1;
             if fxc <= fxr {
                 self.sim.row_mut(last).assign(&xc);
@@ -575,7 +574,7 @@ where
         } else {
             // Perform an inside contraction
             let xcc = self.affine(&xbar, self.psi, -one);
-            let fxcc = self.obj(&xcc);
+            let fxcc = self.func(&xcc);
             self.fcalls += 1;
             if fxcc < self.fsim[last] {
                 self.sim.row_mut(last).assign(&xcc);
@@ -607,6 +606,7 @@ where
 {
     type Iterate = Array1<A>;
     type Intermediate = ();
+    type ObjectiveOutput = A;
     fn nb_iter(&self) -> usize {
         self.iter
     }
@@ -614,4 +614,9 @@ where
         self.sim.row(0).to_owned()
     }
     fn intermediate(&self) {}
+    fn objective_output(&mut self) -> Self::ObjectiveOutput {
+        let fx = self.func(&self.iterate());
+        self.fcalls += 1;
+        fx
+    }
 }

@@ -171,7 +171,7 @@ where
 /// let gradf = |x: &Array1<f32>| array![2. * (x[0] + 2.) * (2. * x[0].powi(2) - x[0] - 1.)];
 /// let x0 = &array![-1.];
 ///
-/// let x_star = descent(
+/// let (x_star, f_star) = descent(
 ///     f,
 ///     gradf,
 ///     &x0,
@@ -181,7 +181,7 @@ where
 /// ).unwrap();
 /// assert!((-2. - x_star[0]).abs() < 1e-10);
 ///
-/// let x_star = descent(
+/// let (x_star, f_star) = descent(
 ///     f,
 ///     gradf,
 ///     &x0,
@@ -192,11 +192,11 @@ where
 /// assert!((-2. - x_star[0]).abs() < 1e-10);
 ///
 /// let x0 = &array![-0.5];
-/// let x_star = descent(f, gradf, &x0, Default::default(), 1e-3, Some(10)).unwrap();
+/// let (x_star, f_star) = descent(f, gradf, &x0, Default::default(), 1e-3, Some(10)).unwrap();
 /// assert!((-0.5 - x_star[0]).abs() < 1e-10);
 ///
 /// let x0 = &array![0.];
-/// let x_star = descent(f, gradf, &x0, Default::default(), 1e-3, Some(10)).unwrap();
+/// let (x_star, f_star) = descent(f, gradf, &x0, Default::default(), 1e-3, Some(10)).unwrap();
 /// assert!((1. - x_star[0]).abs() < 1e-10);
 ///
 /// // It also takes multivariate objective functions
@@ -209,9 +209,9 @@ where
 ///     ]
 /// };
 /// let x = array![1f32, -0.5f32];
-/// let opt = descent(f, gradf, &x, Default::default(), 1e-3, Some(10000)).unwrap();
-/// assert!((opt[0] - 1.).abs() <= 1e-2);
-/// assert!((opt[1] - 1.).abs() <= 1e-2);
+/// let (x_star, f_star) = descent(f, gradf, &x, Default::default(), 1e-3, Some(10000)).unwrap();
+/// assert!((x_star[0] - 1.).abs() <= 1e-2);
+/// assert!((x_star[1] - 1.).abs() <= 1e-2);
 /// ```
 pub fn descent<X, F, G>(
     f: F,
@@ -220,7 +220,7 @@ pub fn descent<X, F, G>(
     params: DescentParameter<X::Elem>,
     gtol: X::Elem,
     maxiter: Option<usize>,
-) -> Result<X, TuutalError<X>>
+) -> Result<(X, X::Elem), TuutalError<X>>
 where
     X: Vector + Clone + VecDot<Output = X::Elem>,
     for<'a> &'a X: Add<X, Output = X> + Mul<&'a X, Output = X> + Mul<X, Output = X>,
