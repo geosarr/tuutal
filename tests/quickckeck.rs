@@ -3,7 +3,10 @@ extern crate quickcheck;
 extern crate tuutal;
 
 use core::cmp::min;
-use tuutal::{s, Armijo, Array1, Optimizer, PowellWolfe, VarName};
+use tuutal::{
+    first_order::{ArmijoHyperParameter, PowellWolfeHyperParameter},
+    s, Armijo, Array1, Optimizer, PowellWolfe,
+};
 
 quickcheck! {
     fn descent_armijo(xs: Vec<f32>) -> bool {
@@ -22,10 +25,11 @@ quickcheck! {
         let eye = Array1::ones(arr.shape()[0]);
         let f = |x: &Array1<f32>| 0.5 * x.dot(x).powi(2) + eye.dot(x) + 1.;
         let gradf = |x: &Array1<f32>| 2. * x * x.dot(x) + eye.clone();
-        let mut iterates = Armijo::new(f, gradf, arr.to_owned(), 0.01, 0.5, 1e-3);
+        let mut iterates = Armijo::new(f, gradf, arr.to_owned(), ArmijoHyperParameter{gamma:0.01, beta: 0.5, epsilon: 1e-3});
         let mut x_prev = arr.to_owned();
         let mut iter = 1;
-        while let Some(x) = iterates.next() {
+        while let Some(_) = iterates.next() {
+            let x = iterates.iterate();
             assert!(f(&x) < f(&x_prev) + f32::EPSILON);
             x_prev = x;
             iter += 1;
@@ -56,15 +60,14 @@ quickcheck! {
         let gradf = |x: &Array1<f32>| 2. * x * x.dot(x) ;
         let gamma = 0.001;
         let beta = 0.9;
-        let mut iterates = PowellWolfe::new(f, gradf, arr.to_owned(), gamma, beta, 1e-3);
+        let mut iterates = PowellWolfe::new(f, gradf, arr.to_owned(), PowellWolfeHyperParameter{gamma, beta, epsilon: 1e-3});
         let mut x_prev = arr.to_owned();
         let mut iter = 1;
-        while let Some(x_next) = iterates.next() {
-            // let gradfx_next = gradf(&x_next);
+        while let Some(_) = iterates.next() {
+            let x_next = iterates.iterate();
             let neg_gradfx_prev = -gradf(&x_prev);
             let gradfx_d = neg_gradfx_prev.dot(&neg_gradfx_prev);
-            let intermed = iterates.intermediate();
-            let step_size = intermed[&VarName::StepSize][0];
+            let step_size = iterates.intermediate()[0];
             assert!(f(&x_next) <= f(&x_prev) - step_size * gamma * gradfx_d);
             x_prev = x_next;
             iter += 1;

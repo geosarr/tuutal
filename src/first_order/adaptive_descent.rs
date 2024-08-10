@@ -1,5 +1,5 @@
 mod adadelta;
 mod adagrad;
 
-pub use adadelta::AdaDelta;
-pub use adagrad::AdaGrad;
+pub use adadelta::{AdaDelta, AdaDeltaHyperParameter};
+pub use adagrad::{AdaGrad, AdaGradHyperParameter};

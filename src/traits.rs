@@ -98,7 +98,7 @@ where
 }
 
 /// Implements an iterator counting the number of iterations done so far and a full optimization routine.
-pub trait Optimizer: core::iter::Iterator<Item = Self::Iterate> {
+pub trait Optimizer: core::iter::Iterator {
     type Iterate;
     type Intermediate;
     /// Number of iterations done so far.
@@ -111,16 +111,17 @@ pub trait Optimizer: core::iter::Iterator<Item = Self::Iterate> {
         maxiter: Option<usize>,
     ) -> Result<Self::Iterate, TuutalError<Self::Iterate>> {
         let maxiter = maxiter.unwrap_or(1000);
-        while let Some(x) = self.next() {
+        while let Some(_) = self.next() {
             if self.nb_iter() > maxiter {
                 return Err(TuutalError::Convergence {
-                    iterate: x,
+                    iterate: self.iterate(),
                     maxiter,
                 });
             }
         }
         Ok(self.iterate())
     }
+    /// Gives intermediate values during the algorithm like step size.
     fn intermediate(&self) -> Self::Intermediate;
 }
 

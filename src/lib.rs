@@ -58,13 +58,13 @@ where
     }
 }
 
-/// A set of variable names used in this crate to avoid using &str.
-#[derive(Debug, PartialEq, Eq, Hash)]
-pub enum VarName {
-    Gamma,
-    Beta,
-    Epsilon,
-    StepSize,
-    AccumGrad,
-    AccumUpdate,
-}
+// /// A set of variable names used in this crate to avoid using &str.
+// #[derive(Debug, PartialEq, Eq, Hash)]
+// pub enum VarName {
+//     Gamma,
+//     Beta,
+//     Epsilon,
+//     StepSize,
+//     AccumGrad,
+//     AccumUpdate,
+// }

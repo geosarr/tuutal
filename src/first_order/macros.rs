@@ -1,23 +1,23 @@
 macro_rules! descent_rule {
-    ($rule:ident, $step:ty, $sigma:expr, $accum:expr) => {
+    ($rule:ident, $step:ty, $sigma:expr, $hp:ident, $accum:ty, $accumnew:expr) => {
         #[derive(Debug)]
         #[allow(dead_code)]
-        pub struct $rule<X, F, G, S>
+        pub struct $rule<X, F, G, S, H, A>
         where
             X: Vector,
         {
-            f: F,                                    // objective function
-            gradf: G,                                // gradient of the objective function
-            x: X,                                    // candidate solution
-            neg_gradfx: X,                           // negative gradient of f at x,
-            sigma: S,                                // step size
-            hyper_params: HashMap<VarName, X::Elem>, // hyper-parameters of the algorithm like tolerance for convergence.
+            f: F,                    // objective function
+            gradf: G,                // gradient of the objective function
+            x: X,                    // candidate solution
+            neg_gradfx: X,           // negative gradient of f at x,
+            sigma: S,                // step size
+            hyper_params: H, // hyper-parameters of the algorithm like tolerance for convergence.
             counter: Counter<usize>, // [nb of iterations, number of f calls, nb of gradf calls]
-            stop_metrics: X::Elem,   // metrics used to stop the algorithm,
-            accumulators: HashMap<VarName, X>, // accumulators during corresponding algorithms.
+            stop_metrics: X::Elem, // metrics used to stop the algorithm,
+            accumulators: A, // accumulators during corresponding algorithms.
         }
 
-        impl<X, F, G> $rule<X, F, G, $step>
+        impl<X, F, G> $rule<X, F, G, $step, $hp<X::Elem>, $accum>
         where
             X: Vector,
         {
@@ -37,10 +37,10 @@ macro_rules! descent_rule {
                 g(x)
             }
             pub(crate) fn stop(&self) -> bool {
-                self.stop_metrics <= self.hyper_params[&VarName::Epsilon].powi(2)
+                self.stop_metrics <= self.hyper_params.epsilon.powi(2)
             }
 
-            pub fn new(f: F, gradf: G, x: X, gamma: X::Elem, beta: X::Elem, eps: X::Elem) -> Self
+            pub fn new(f: F, gradf: G, x: X, hyper_params: $hp<X::Elem>) -> Self
             where
                 X: Vector,
                 G: Fn(&X) -> X,
@@ -52,15 +52,10 @@ macro_rules! descent_rule {
                     x,
                     neg_gradfx: neg_gradfx,
                     sigma: $sigma,
-                    hyper_params: [
-                        (VarName::Gamma, gamma),
-                        (VarName::Beta, beta),
-                        (VarName::Epsilon, eps),
-                    ]
-                    .into(),
+                    hyper_params,
                     counter: Counter::new(),
                     stop_metrics: X::Elem::infinity(),
-                    accumulators: $accum,
+                    accumulators: $accumnew,
                 };
                 optimizer.counter.gcalls += 1;
                 // Not needed when broadcasting is allowed ?
@@ -78,15 +73,15 @@ macro_rules! descent_rule {
 }
 
 macro_rules! impl_optimizer_descent {
-    ($rule:ident, $step:ty) => {
-        impl<X, F, G> core::iter::Iterator for $rule<X, F, G, $step>
+    ($rule:ident, $step:ty, $hp:ident, $accum:ty) => {
+        impl<X, F, G> core::iter::Iterator for $rule<X, F, G, $step, $hp<X::Elem>, $accum>
         where
             X: Vector + VecDot<Output = X::Elem> + Clone,
             for<'b> &'b X: Add<X, Output = X> + Mul<&'b X, Output = X>,
             F: Fn(&X) -> X::Elem,
             G: Fn(&X) -> X,
         {
-            type Item = X;
+            type Item = X::Elem;
             fn next(&mut self) -> Option<Self::Item> {
                 if self.stop() {
                     None
@@ -96,11 +91,11 @@ macro_rules! impl_optimizer_descent {
                     self.counter.iter += 1;
                     self.neg_gradfx = -self.grad(&self.x);
                     self.counter.gcalls += 1;
-                    Some(self.x.clone())
+                    Some(self.stop_metrics)
                 }
             }
         }
-        impl<X, F, G> Optimizer for $rule<X, F, G, $step>
+        impl<X, F, G> Optimizer for $rule<X, F, G, $step, $hp<X::Elem>, $accum>
         where
             X: Vector + VecDot<Output = X::Elem> + Clone,
             for<'b> &'b X: Add<X, Output = X> + Mul<&'b X, Output = X>,
@@ -108,7 +103,7 @@ macro_rules! impl_optimizer_descent {
             G: Fn(&X) -> X,
         {
             type Iterate = X;
-            type Intermediate = HashMap<VarName, $step>;
+            type Intermediate = $step;
             fn nb_iter(&self) -> usize {
                 self.counter.iter
             }
@@ -116,7 +111,7 @@ macro_rules! impl_optimizer_descent {
                 self.x.clone()
             }
             fn intermediate(&self) -> Self::Intermediate {
-                HashMap::from([(VarName::StepSize, self.sigma.clone())])
+                self.sigma.clone()
             }
         }
     };

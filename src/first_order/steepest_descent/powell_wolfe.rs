@@ -3,20 +3,28 @@ use core::ops::{Add, Mul};
 use crate::{
     first_order::macros::{descent_rule, impl_optimizer_descent},
     traits::{Number, VecDot, Vector},
-    Counter, Optimizer, VarName,
+    Counter, Optimizer,
 };
-use hashbrown::HashMap;
 use num_traits::{Float, One, Zero};
+/// Hyperparameters used to compute step sizes in Powell-Wolfe rule.
+#[derive(Debug)]
+pub struct PowellWolfeHyperParameter<T> {
+    pub gamma: T,
+    pub beta: T,
+    pub epsilon: T,
+}
 
 descent_rule!(
     PowellWolfe,
     [<X as Vector>::Elem; 1],
     [X::Elem::zero()],
-    [].into()
+    PowellWolfeHyperParameter,
+    (),
+    ()
 );
-impl_optimizer_descent!(PowellWolfe, [X::Elem; 1]);
+impl_optimizer_descent!(PowellWolfe, [X::Elem; 1], PowellWolfeHyperParameter, ());
 
-impl<X, F, G> PowellWolfe<X, F, G, [X::Elem; 1]>
+impl<X, F, G> PowellWolfe<X, F, G, [X::Elem; 1], PowellWolfeHyperParameter<X::Elem>, ()>
 where
     X: Vector + VecDot<X, Output = X::Elem> + Add<X, Output = X>,
     for<'b> &'b X: Add<X, Output = X>,
@@ -29,10 +37,7 @@ where
         let one_half = X::Elem::cast_from_f32(0.5);
         let fx = self.func(&self.x);
         self.counter.fcalls += 1;
-        let (gamma, beta) = (
-            self.hyper_params[&VarName::Gamma],
-            self.hyper_params[&VarName::Beta],
-        );
+        let (gamma, beta) = (self.hyper_params.gamma, self.hyper_params.beta);
         // The first if and else conditions guarantee having a segment [sigma_minus, sigma_plus]
         // such that sigma_minus satisfies the armijo condition and sigma_plus does not
         // NB: self.stop_metrics is the squared L2-norm of gradf(&x).

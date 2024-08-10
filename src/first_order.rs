@@ -8,10 +8,10 @@ use crate::{
     traits::{VecDot, Vector},
     Number, Optimizer, TuutalError,
 };
-pub use adaptive_descent::{AdaDelta, AdaGrad};
-pub use steepest_descent::{Armijo, PowellWolfe};
+pub use adaptive_descent::{AdaDelta, AdaDeltaHyperParameter, AdaGrad, AdaGradHyperParameter};
+pub use steepest_descent::{Armijo, ArmijoHyperParameter, PowellWolfe, PowellWolfeHyperParameter};
 
-/// Parameters used in the a descent method.
+/// Parameters used in a descent method.
 ///
 /// The **gamma** parameter represents the:
 /// - magnitude of decrease in the objective function in the negative gradient direction for Armijo and Powell rules.
@@ -156,7 +156,14 @@ where
 
 /// A descent algorithm using some step size method.
 ///
-/// It requires an initial guess x<sub>0</sub>.
+/// # Parameters
+/// - **f**: Objective function.
+/// - **gradf**: Gradient function of the objective function.
+/// - **x<sub>0</sub>**: Initital guess.
+/// - **params**: Hyperparameters of the algorithm, see the different algorithms in [`DescentParameter`]
+/// - **gtol**: Tolerance on gradient norm for convergence,
+/// - **maxiter**: Maximum number of iterations.
+///
 /// ```
 /// use tuutal::{array, descent, DescentParameter, Array1};
 /// // Example from python scipy.optimize.minimize_scalar
@@ -168,28 +175,28 @@ where
 ///     f,
 ///     gradf,
 ///     &x0,
-///     &DescentParameter::new_armijo(1e-2, 0.25),
+///     DescentParameter::new_armijo(1e-2, 0.25),
 ///     1e-3,
 ///     Some(10),
 /// ).unwrap();
 /// assert!((-2. - x_star[0]).abs() < 1e-10);
 ///
 /// let x_star = descent(
-///     &f,
-///     &gradf,
+///     f,
+///     gradf,
 ///     &x0,
-///     &DescentParameter::new_powell_wolfe(1e-2, 0.9),
+///     DescentParameter::new_powell_wolfe(1e-2, 0.9),
 ///     1e-3,
 ///     Some(10),
 /// ).unwrap();
 /// assert!((-2. - x_star[0]).abs() < 1e-10);
 ///
 /// let x0 = &array![-0.5];
-/// let x_star = descent(f, gradf, &x0, &Default::default(), 1e-3, Some(10)).unwrap();
+/// let x_star = descent(f, gradf, &x0, Default::default(), 1e-3, Some(10)).unwrap();
 /// assert!((-0.5 - x_star[0]).abs() < 1e-10);
 ///
 /// let x0 = &array![0.];
-/// let x_star = descent(f, gradf, &x0, &Default::default(), 1e-3, Some(10)).unwrap();
+/// let x_star = descent(f, gradf, &x0, Default::default(), 1e-3, Some(10)).unwrap();
 /// assert!((1. - x_star[0]).abs() < 1e-10);
 ///
 /// // It also takes multivariate objective functions
@@ -202,7 +209,7 @@ where
 ///     ]
 /// };
 /// let x = array![1f32, -0.5f32];
-/// let opt = descent(f, gradf, &x, &Default::default(), 1e-3, Some(10000)).unwrap();
+/// let opt = descent(f, gradf, &x, Default::default(), 1e-3, Some(10000)).unwrap();
 /// assert!((opt[0] - 1.).abs() <= 1e-2);
 /// assert!((opt[1] - 1.).abs() <= 1e-2);
 /// ```
@@ -210,7 +217,7 @@ pub fn descent<X, F, G>(
     f: F,
     gradf: G,
     x0: &X,
-    params: &DescentParameter<X::Elem>,
+    params: DescentParameter<X::Elem>,
     gtol: X::Elem,
     maxiter: Option<usize>,
 ) -> Result<X, TuutalError<X>>
@@ -221,17 +228,49 @@ where
     G: Fn(&X) -> X,
 {
     match params {
-        DescentParameter::Armijo { gamma, beta } => {
-            Armijo::new(f, gradf, x0.clone(), *gamma, *beta, gtol).optimize(maxiter)
-        }
-        DescentParameter::PowellWolfe { gamma, beta } => {
-            PowellWolfe::new(f, gradf, x0.clone(), *gamma, *beta, gtol).optimize(maxiter)
-        }
-        DescentParameter::AdaDelta { gamma, beta } => {
-            AdaDelta::new(f, gradf, x0.clone(), *gamma, *beta, gtol).optimize(maxiter)
-        }
-        DescentParameter::AdaGrad { gamma, beta } => {
-            AdaGrad::new(f, gradf, x0.clone(), *gamma, *beta, gtol).optimize(maxiter)
-        }
+        DescentParameter::Armijo { gamma, beta } => Armijo::new(
+            f,
+            gradf,
+            x0.clone(),
+            ArmijoHyperParameter {
+                gamma,
+                beta,
+                epsilon: gtol,
+            },
+        )
+        .optimize(maxiter),
+        DescentParameter::PowellWolfe { gamma, beta } => PowellWolfe::new(
+            f,
+            gradf,
+            x0.clone(),
+            PowellWolfeHyperParameter {
+                gamma,
+                beta,
+                epsilon: gtol,
+            },
+        )
+        .optimize(maxiter),
+        DescentParameter::AdaDelta { gamma, beta } => AdaDelta::new(
+            f,
+            gradf,
+            x0.clone(),
+            AdaDeltaHyperParameter {
+                gamma,
+                beta,
+                epsilon: gtol,
+            },
+        )
+        .optimize(maxiter),
+        DescentParameter::AdaGrad { gamma, beta } => AdaGrad::new(
+            f,
+            gradf,
+            x0.clone(),
+            AdaGradHyperParameter {
+                gamma,
+                beta,
+                epsilon: gtol,
+            },
+        )
+        .optimize(maxiter),
     }
 }
