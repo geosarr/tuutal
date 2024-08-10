@@ -22,11 +22,11 @@ macro_rules! first_order_method {
                 wrap_vec_func_scalar!(py, f, f_kwargs),
                 wrap_vec_func_vec!(py, g, g_kwargs),
                 &x0.as_array().to_owned(),
-                &DescentParameter::$name(gamma, beta),
+                DescentParameter::$name(gamma, beta),
                 gtol,
                 maxiter,
             ) {
-                Ok(value) => Ok(value.into_pyarray_bound(py)),
+                Ok((x, _fx)) => Ok(x.into_pyarray_bound(py)),
                 Err(error) => match error {
                     TuutalError::Convergence {
                         iterate: x,

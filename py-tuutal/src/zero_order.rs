@@ -33,7 +33,7 @@ pub fn nelder_mead<'py>(
         adaptive.unwrap_or(false),
         bounds,
     ) {
-        Ok(value) => Ok(value.into_pyarray_bound(py)),
+        Ok((x, _fx)) => Ok(x.into_pyarray_bound(py)),
         Err(error) => match error {
             // Maybe better to throw also the current iterate and the number
             // actual function calls for this exception.
@@ -142,7 +142,7 @@ pub fn brent_unbounded(
     kwargs: Option<&Bound<'_, PyDict>>,
 ) -> PyResult<(f64, f64, usize)> {
     let func = wrap_scalar_func_scalar!(py, f, kwargs);
-    let brack = brack.map_or(None, |v| Some([v.0, v.1]));
+    let brack = brack.map(|v| [v.0, v.1]);
     match if let Some(val) = brack {
         brent_unbounded_rs(func, Some(&[val[0], val[1]]), maxiter, xtol)
     } else {
