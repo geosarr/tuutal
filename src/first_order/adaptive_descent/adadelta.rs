@@ -34,12 +34,13 @@ descent_rule!(
 
 impl_optimizer_descent!(AdaDelta, X, AdaDeltaHyperParameter, AdaDeltaAccumulators<X>);
 
-impl<X, F, G> AdaDelta<X, F, G, X, AdaDeltaHyperParameter<X::Elem>, AdaDeltaAccumulators<X>>
+impl<X, F, G, Farg, Garg>
+    AdaDelta<X, F, G, X, AdaDeltaHyperParameter<X::Elem>, AdaDeltaAccumulators<X>, Farg, Garg>
 where
     X: Vector,
     for<'b> &'b X: Add<X, Output = X> + Mul<&'b X, Output = X>,
-    F: Fn(&X) -> X::Elem,
-    G: Fn(&X) -> X,
+    F: Fn(&X, &Farg) -> X::Elem,
+    G: Fn(&X, &Garg) -> X,
 {
     pub(crate) fn step(&mut self) {
         let (gamma, beta) = (self.hyper_params.gamma, self.hyper_params.beta);

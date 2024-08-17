@@ -23,14 +23,14 @@ quickcheck! {
             return true;
         }
         let eye = Array1::ones(arr.shape()[0]);
-        let f = |x: &Array1<f32>| 0.5 * x.dot(x).powi(2) + eye.dot(x) + 1.;
-        let gradf = |x: &Array1<f32>| 2. * x * x.dot(x) + eye.clone();
-        let mut iterates = Armijo::new(f, gradf, arr.to_owned(), ArmijoHyperParameter{gamma:0.01, beta: 0.5, epsilon: 1e-3});
+        let f = |x: &Array1<f32>, _: &()| 0.5 * x.dot(x).powi(2) + eye.dot(x) + 1.;
+        let gradf = |x: &Array1<f32>, _: &()| 2. * x * x.dot(x) + eye.clone();
+        let mut iterates = Armijo::new(f, gradf, arr.to_owned(), ArmijoHyperParameter{gamma:0.01, beta: 0.5, epsilon: 1e-3}, (), ());
         let mut x_prev = arr.to_owned();
         let mut iter = 1;
         while let Some(_) = iterates.next() {
             let x = iterates.iterate();
-            assert!(f(&x) < f(&x_prev) + f32::EPSILON);
+            assert!(f(&x, &()) < f(&x_prev, &()) + f32::EPSILON);
             x_prev = x;
             iter += 1;
             if iter > 10 {
@@ -56,19 +56,20 @@ quickcheck! {
             // To avoid arbitrarily large or missing numbers.
             return true;
         }
-        let f = |x: &Array1<f32>| 0.5 * x.dot(x).powi(2) + 1.;
-        let gradf = |x: &Array1<f32>| 2. * x * x.dot(x) ;
+        let f = |x: &Array1<f32>, c: &(f32, f32)| c.0 * x.dot(x).powi(2) + c.1;
+        let gradf = |x: &Array1<f32>, _:&()| 2. * x * x.dot(x) ;
         let gamma = 0.001;
         let beta = 0.9;
-        let mut iterates = PowellWolfe::new(f, gradf, arr.to_owned(), PowellWolfeHyperParameter{gamma, beta, epsilon: 1e-3});
+        let cons = (0.5, 1.);
+        let mut iterates = PowellWolfe::new(f, gradf, arr.to_owned(), PowellWolfeHyperParameter{gamma, beta, epsilon: 1e-3}, cons, ());
         let mut x_prev = arr.to_owned();
         let mut iter = 1;
         while let Some(_) = iterates.next() {
             let x_next = iterates.iterate();
-            let neg_gradfx_prev = -gradf(&x_prev);
+            let neg_gradfx_prev = -gradf(&x_prev, &());
             let gradfx_d = neg_gradfx_prev.dot(&neg_gradfx_prev);
             let step_size = iterates.intermediate()[0];
-            assert!(f(&x_next) <= f(&x_prev) - step_size * gamma * gradfx_d);
+            assert!(f(&x_next, &cons) <= f(&x_prev, &cons) - step_size * gamma * gradfx_d);
             x_prev = x_next;
             iter += 1;
             if iter > 10 {

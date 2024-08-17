@@ -6,7 +6,6 @@ use crate::{
     Counter, Optimizer,
 };
 use num_traits::{Float, One, Zero};
-
 /// Hyperparameters used to compute step sizes in Armijo rule.
 #[derive(Debug)]
 pub struct ArmijoHyperParameter<T> {
@@ -25,12 +24,13 @@ descent_rule!(
 );
 impl_optimizer_descent!(Armijo, [<X as Vector>::Elem; 1], ArmijoHyperParameter, ());
 
-impl<X, F, G> Armijo<X, F, G, [X::Elem; 1], ArmijoHyperParameter<X::Elem>, ()>
+impl<X, F, G, Farg, Garg>
+    Armijo<X, F, G, [X::Elem; 1], ArmijoHyperParameter<X::Elem>, (), Farg, Garg>
 where
     X: Vector + VecDot<X, Output = X::Elem>,
     for<'b> &'b X: Add<X, Output = X>,
-    F: Fn(&X) -> X::Elem,
-    G: Fn(&X) -> X,
+    F: Fn(&X, &Farg) -> X::Elem,
+    G: Fn(&X, &Garg) -> X,
 {
     pub(crate) fn step(&mut self) {
         let mut sigma = X::Elem::one();
