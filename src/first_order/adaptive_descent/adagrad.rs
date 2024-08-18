@@ -30,13 +30,12 @@ descent_rule!(
 );
 impl_optimizer_descent!(AdaGrad, X, AdaGradHyperParameter, AdaGradAccumulators<X>);
 
-impl<X, F, G, Farg, Garg>
-    AdaGrad<X, F, G, X, AdaGradHyperParameter<X::Elem>, AdaGradAccumulators<X>, Farg, Garg>
+impl<X, F, G> AdaGrad<X, F, G, X, AdaGradHyperParameter<X::Elem>, AdaGradAccumulators<X>>
 where
     X: Vector,
     for<'b> &'b X: Add<X, Output = X> + Mul<&'b X, Output = X>,
-    F: Fn(&X, &Farg) -> X::Elem,
-    G: Fn(&X, &Garg) -> X,
+    F: Fn(&X) -> X::Elem,
+    G: Fn(&X) -> X,
 {
     pub(crate) fn step(&mut self) {
         let (gamma, beta) = (self.hyper_params.gamma, self.hyper_params.beta);

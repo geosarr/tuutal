@@ -24,13 +24,12 @@ descent_rule!(
 );
 impl_optimizer_descent!(PowellWolfe, [X::Elem; 1], PowellWolfeHyperParameter, ());
 
-impl<X, F, G, Farg, Garg>
-    PowellWolfe<X, F, G, [X::Elem; 1], PowellWolfeHyperParameter<X::Elem>, (), Farg, Garg>
+impl<X, F, G> PowellWolfe<X, F, G, [X::Elem; 1], PowellWolfeHyperParameter<X::Elem>, ()>
 where
     X: Vector + VecDot<X, Output = X::Elem> + Add<X, Output = X>,
     for<'b> &'b X: Add<X, Output = X>,
-    F: Fn(&X, &Farg) -> X::Elem,
-    G: Fn(&X, &Garg) -> X,
+    F: Fn(&X) -> X::Elem,
+    G: Fn(&X) -> X,
 {
     pub(crate) fn step(&mut self) {
         let mut sigma_minus = X::Elem::one();

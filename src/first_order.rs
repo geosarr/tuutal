@@ -167,8 +167,8 @@ where
 /// ```
 /// use tuutal::{array, descent, DescentParameter, Array1};
 /// // Example from python scipy.optimize.minimize_scalar
-/// let f = |x: &Array1<f32>, _: &()| (x[0] - 2.) * x[0] * (x[0] + 2.).powi(2);
-/// let gradf = |x: &Array1<f32>, _: &()| array![2. * (x[0] + 2.) * (2. * x[0].powi(2) - x[0] - 1.)];
+/// let f = |x: &Array1<f32>| (x[0] - 2.) * x[0] * (x[0] + 2.).powi(2);
+/// let gradf = |x: &Array1<f32>| array![2. * (x[0] + 2.) * (2. * x[0].powi(2) - x[0] - 1.)];
 /// let x0 = &array![-1.];
 ///
 /// let (x_star, f_star) = descent(
@@ -178,8 +178,6 @@ where
 ///     DescentParameter::new_armijo(1e-2, 0.25),
 ///     1e-3,
 ///     Some(10),
-///     (),
-///     ()
 /// ).unwrap();
 /// assert!((-2. - x_star[0]).abs() < 1e-10);
 ///
@@ -190,48 +188,44 @@ where
 ///     DescentParameter::new_powell_wolfe(1e-2, 0.9),
 ///     1e-3,
 ///     Some(10),
-///     (),
-///     ()
 /// ).unwrap();
 /// assert!((-2. - x_star[0]).abs() < 1e-10);
 ///
 /// let x0 = &array![-0.5];
-/// let (x_star, f_star) = descent(f, gradf, &x0, Default::default(), 1e-3, Some(10), (), ()).unwrap();
+/// let (x_star, f_star) = descent(f, gradf, &x0, Default::default(), 1e-3, Some(10)).unwrap();
 /// assert!((-0.5 - x_star[0]).abs() < 1e-10);
 ///
 /// let x0 = &array![0.];
-/// let (x_star, f_star) = descent(f, gradf, &x0, Default::default(), 1e-3, Some(10), (), ()).unwrap();
+/// let (x_star, f_star) = descent(f, gradf, &x0, Default::default(), 1e-3, Some(10)).unwrap();
 /// assert!((1. - x_star[0]).abs() < 1e-10);
 ///
 /// // It also takes multivariate objective functions
 /// let f =
-///     |arr: &Array1<f32>, _: &()| 100. * (arr[1] - arr[0].powi(2)).powi(2) + (1. - arr[0]).powi(2);
-/// let gradf = |arr: &Array1<f32>, _: &()| {
+///     |arr: &Array1<f32>| 100. * (arr[1] - arr[0].powi(2)).powi(2) + (1. - arr[0]).powi(2);
+/// let gradf = |arr: &Array1<f32>| {
 ///     array![
 ///         -400. * arr[0] * (arr[1] - arr[0].powi(2)) - 2. * (1. - arr[0]),
 ///         200. * (arr[1] - arr[0].powi(2))
 ///     ]
 /// };
 /// let x = array![1f32, -0.5f32];
-/// let (x_star, f_star) = descent(f, gradf, &x, Default::default(), 1e-3, Some(10000), (), ()).unwrap();
+/// let (x_star, f_star) = descent(f, gradf, &x, Default::default(), 1e-3, Some(10000)).unwrap();
 /// assert!((x_star[0] - 1.).abs() <= 1e-2);
 /// assert!((x_star[1] - 1.).abs() <= 1e-2);
 /// ```
-pub fn descent<X, F, G, Farg, Garg>(
+pub fn descent<X, F, G>(
     f: F,
     gradf: G,
     x0: &X,
     params: DescentParameter<X::Elem>,
     gtol: X::Elem,
     maxiter: Option<usize>,
-    farg: Farg,
-    garg: Garg,
 ) -> Result<(X, X::Elem), TuutalError<X>>
 where
     X: Vector + Clone + VecDot<Output = X::Elem>,
     for<'a> &'a X: Add<X, Output = X> + Mul<&'a X, Output = X> + Mul<X, Output = X>,
-    F: Fn(&X, &Farg) -> X::Elem,
-    G: Fn(&X, &Garg) -> X,
+    F: Fn(&X) -> X::Elem,
+    G: Fn(&X) -> X,
 {
     match params {
         DescentParameter::Armijo { gamma, beta } => Armijo::new(
@@ -243,8 +237,6 @@ where
                 beta,
                 epsilon: gtol,
             },
-            farg,
-            garg,
         )
         .optimize(maxiter),
         DescentParameter::PowellWolfe { gamma, beta } => PowellWolfe::new(
@@ -256,8 +248,6 @@ where
                 beta,
                 epsilon: gtol,
             },
-            farg,
-            garg,
         )
         .optimize(maxiter),
         DescentParameter::AdaDelta { gamma, beta } => AdaDelta::new(
@@ -269,8 +259,6 @@ where
                 beta,
                 epsilon: gtol,
             },
-            farg,
-            garg,
         )
         .optimize(maxiter),
         DescentParameter::AdaGrad { gamma, beta } => AdaGrad::new(
@@ -282,8 +270,6 @@ where
                 beta,
                 epsilon: gtol,
             },
-            farg,
-            garg,
         )
         .optimize(maxiter),
     }

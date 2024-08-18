@@ -24,13 +24,12 @@ descent_rule!(
 );
 impl_optimizer_descent!(Armijo, [<X as Vector>::Elem; 1], ArmijoHyperParameter, ());
 
-impl<X, F, G, Farg, Garg>
-    Armijo<X, F, G, [X::Elem; 1], ArmijoHyperParameter<X::Elem>, (), Farg, Garg>
+impl<X, F, G> Armijo<X, F, G, [X::Elem; 1], ArmijoHyperParameter<X::Elem>, ()>
 where
     X: Vector + VecDot<X, Output = X::Elem>,
     for<'b> &'b X: Add<X, Output = X>,
-    F: Fn(&X, &Farg) -> X::Elem,
-    G: Fn(&X, &Garg) -> X,
+    F: Fn(&X) -> X::Elem,
+    G: Fn(&X) -> X,
 {
     pub(crate) fn step(&mut self) {
         let mut sigma = X::Elem::one();
