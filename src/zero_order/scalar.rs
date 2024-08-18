@@ -531,17 +531,7 @@ where
             break;
         }
     }
-    if xf.is_nan() {
-        return Err(TuutalError::Nan {
-            x: (xf, a, b, fx, f(a), f(b), fcalls + 2),
-        });
-    }
-    if fx.is_nan() {
-        return Err(TuutalError::Nan {
-            x: (xf, a, b, fx, f(a), f(b), fcalls + 2),
-        });
-    }
-    if fu.is_nan() {
+    if xf.is_nan() | fx.is_nan() | fu.is_nan() {
         return Err(TuutalError::Nan {
             x: (xf, a, b, fx, f(a), f(b), fcalls + 2),
         });
