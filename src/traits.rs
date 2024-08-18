@@ -1,7 +1,9 @@
-use crate::{s, Array, Bounds, MatrixType, VecType};
+use crate::{s, Array1, Array2, Bounds, TuutalError};
+extern crate alloc;
+use alloc::vec::Vec;
+use core::ops::{Add, Div, Mul, Neg, Sub};
 use ndarray::linalg::Dot;
-use num_traits::{Float, FromPrimitive, Zero};
-use std::ops::{Add, Div, Mul, Sub};
+use num_traits::{Float, FromPrimitive};
 
 /// Complements num_traits float-pointing number Float trait by adding
 /// conversion from f32 and provides easy access to exponential numbers.
@@ -44,20 +46,48 @@ where
 macro_rules! impl_scalar(
   ( $( $t:ident ),* )=> {
       $(
-        impl Scalar<VecType<$t>> for $t {}
-        impl Scalar<MatrixType<$t>> for $t {}
+        impl Scalar<Array1<$t>> for $t {}
+        impl Scalar<Array2<$t>> for $t {}
       )*
   }
 );
 impl_scalar!(f32, f64);
+
+pub trait Vector:
+    Neg<Output = Self>
+    + Add<Output = Self>
+    + Mul<Output = Self>
+    + Div<Output = Self>
+    + Sub<Output = Self>
+    + FromIterator<Self::Elem>
+    + IntoIterator<Item = Self::Elem>
+    + Sized
+where
+    Self::Elem: Scalar<Self>,
+{
+    type Elem;
+    fn len(&self) -> usize;
+    fn zero(size: usize) -> Self;
+}
+impl<T> Vector for Array1<T>
+where
+    T: Scalar<Array1<T>>,
+{
+    type Elem = T;
+    fn len(&self) -> usize {
+        Array1::len(self)
+    }
+    fn zero(size: usize) -> Self {
+        Array1::from_elem(size, T::zero())
+    }
+}
 
 /// Dot operation between vectors.
 pub trait VecDot<Rhs = Self> {
     type Output;
     fn dot(&self, rhs: &Rhs) -> Self::Output;
 }
-
-impl<T> VecDot<VecType<T>> for VecType<T>
+impl<T> VecDot<Array1<T>> for Array1<T>
 where
     Self: Dot<Self, Output = T>,
 {
@@ -67,60 +97,62 @@ where
     }
 }
 
-pub trait VecZero {
-    fn zero(size: usize) -> Self;
-}
-impl<T> VecZero for VecType<T>
-where
-    T: Zero + Clone,
-{
-    fn zero(size: usize) -> Self {
-        Array::from(vec![T::zero(); size])
-    }
-}
-
-pub trait VecInfo {
-    fn len(&self) -> usize;
-}
-impl<T> VecInfo for VecType<T> {
-    fn len(&self) -> usize {
-        VecType::len(self)
-    }
-}
-
-/// Implements an iterator counting the number of iterations done so far.
-pub trait Iterable<X>: std::iter::Iterator<Item = X> {
+/// Implements an iterator counting the number of iterations done so far and a full optimization routine.
+pub trait Optimizer: core::iter::Iterator {
+    type Iterate;
+    type Intermediate;
+    type ObjectiveOutput;
     /// Number of iterations done so far.
     fn nb_iter(&self) -> usize;
     /// Current iterate.
-    fn iterate(&self) -> X;
+    fn iterate(&self) -> Self::Iterate;
+    /// Full optimization routine.
+    fn optimize(
+        &mut self,
+        maxiter: Option<usize>,
+    ) -> Result<(Self::Iterate, Self::ObjectiveOutput), TuutalError<Self::Iterate>> {
+        let maxiter = maxiter.unwrap_or(1000);
+        while let Some(_) = self.next() {
+            if self.nb_iter() > maxiter {
+                return Err(TuutalError::Convergence {
+                    iterate: self.iterate(),
+                    maxiter,
+                });
+            }
+        }
+        Ok((self.iterate(), self.objective_output()))
+    }
+    /// Gives current intermediate values during the algorithm like step size.
+    fn intermediate(&self) -> Self::Intermediate;
+    /// Gives objective function output for current iterate.
+    fn objective_output(&mut self) -> Self::ObjectiveOutput;
 }
 
 /// Implements the notion of upper and lower bounds
 pub trait Bound<T> {
-    fn lower(&self, dim: usize) -> VecType<T>;
-    fn upper(&self, dim: usize) -> VecType<T>;
+    fn lower(&self, dim: usize) -> Array1<T>;
+    fn upper(&self, dim: usize) -> Array1<T>;
 }
 impl<T> Bound<T> for (T, T)
 where
     T: Copy,
 {
-    fn lower(&self, dim: usize) -> VecType<T> {
-        Array::from(vec![self.0; dim])
+    fn lower(&self, dim: usize) -> Array1<T> {
+        Array1::from_elem(dim, self.0)
     }
-    fn upper(&self, dim: usize) -> VecType<T> {
-        Array::from(vec![self.1; dim])
+    fn upper(&self, dim: usize) -> Array1<T> {
+        Array1::from_elem(dim, self.1)
     }
 }
 impl<T> Bound<T> for Vec<(T, T)>
 where
     T: Copy,
 {
-    fn lower(&self, dim: usize) -> VecType<T> {
+    fn lower(&self, dim: usize) -> Array1<T> {
         assert!(dim <= self.len());
         (0..dim).map(|i| self[i].0).collect()
     }
-    fn upper(&self, dim: usize) -> VecType<T> {
+    fn upper(&self, dim: usize) -> Array1<T> {
         assert!(dim <= self.len());
         (0..dim).map(|i| self[i].1).collect()
     }
@@ -130,14 +162,14 @@ where
     T: Copy,
     V: Bound<T>,
 {
-    fn lower(&self, dim: usize) -> VecType<T> {
+    fn lower(&self, dim: usize) -> Array1<T> {
         if let Some(bounds) = self {
             bounds.lower(dim)
         } else {
             panic!("No lower bounds for None")
         }
     }
-    fn upper(&self, dim: usize) -> VecType<T> {
+    fn upper(&self, dim: usize) -> Array1<T> {
         if let Some(bounds) = self {
             bounds.upper(dim)
         } else {
@@ -150,12 +182,12 @@ impl<T> Bound<T> for Bounds<T>
 where
     T: Copy,
 {
-    fn lower(&self, dim: usize) -> VecType<T> {
+    fn lower(&self, dim: usize) -> Array1<T> {
         let bound = self.lower_bound();
         assert!(dim <= bound.len());
         bound.slice(s![..dim]).to_owned()
     }
-    fn upper(&self, dim: usize) -> VecType<T> {
+    fn upper(&self, dim: usize) -> Array1<T> {
         let bound = self.upper_bound();
         assert!(dim <= bound.len());
         bound.slice(s![..dim]).to_owned()

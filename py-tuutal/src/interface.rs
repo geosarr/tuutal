@@ -12,7 +12,7 @@ macro_rules! wrap_scalar_func_scalar {
 
 macro_rules! wrap_vec_func_scalar {
     ($py:expr, $py_func:expr, $kwds:ident) => {
-        |x: &VecType<f64>| {
+        |x: &Array1<f64>| {
             $py_func
                 .call_bound($py, (x.clone().into_pyarray_bound($py),), $kwds)
                 .expect("python objective function failed.")
@@ -24,7 +24,7 @@ macro_rules! wrap_vec_func_scalar {
 
 macro_rules! wrap_vec_func_vec {
     ($py:expr, $py_func:expr, $kwds:ident) => {
-        |x: &VecType<f64>| {
+        |x: &Array1<f64>| {
             $py_func
                 .call_bound($py, (x.clone().into_pyarray_bound($py),), $kwds)
                 .expect("python objective function failed.")

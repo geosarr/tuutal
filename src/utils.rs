@@ -1,9 +1,9 @@
-use crate::VecType;
+use crate::Array1;
 
-pub(crate) fn l2_diff<T>(a: &VecType<T>, b: &VecType<T>) -> T
+pub(crate) fn l2_diff<T>(a: &Array1<T>, b: &Array1<T>) -> T
 where
-    for<'a> &'a T: std::ops::Sub<Output = T>,
-    T: num_traits::Float + std::ops::Mul<Output = T> + std::iter::Sum,
+    for<'a> &'a T: core::ops::Sub<Output = T>,
+    T: num_traits::Float + core::ops::Mul<Output = T> + core::iter::Sum,
 {
     a.iter()
         .zip(b)
@@ -12,7 +12,7 @@ where
         .sqrt()
 }
 
-pub(crate) fn is_between<T>(arr: &VecType<T>, lower: &VecType<T>, upper: &VecType<T>) -> bool
+pub(crate) fn is_between<T>(arr: &Array1<T>, lower: &Array1<T>, upper: &Array1<T>) -> bool
 where
     for<'a> &'a T: PartialOrd,
 {

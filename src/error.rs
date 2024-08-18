@@ -1,4 +1,7 @@
-use thiserror::Error;
+// use thiserror::Error;
+use thiserror_no_std::Error;
+extern crate alloc;
+use alloc::string::String;
 
 /// Handles types of errors occuring during optimization.
 #[derive(Error, Debug, PartialEq)]
