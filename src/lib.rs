@@ -32,8 +32,7 @@ pub(crate) use utils::{is_between, l2_diff};
 
 pub use traits::{Bound, Number, Optimizer, Scalar};
 pub use zero_order::{
-    bracket, brent_bounded, brent_unbounded, brentq, nelder_mead, powell, NelderMeadIterates,
-    PowellIterates,
+    bracket, brent_bounded, brent_unbounded, brentq, nelder_mead, powell, NelderMead, Powell,
 };
 
 pub(crate) use zero_order::Bounds;

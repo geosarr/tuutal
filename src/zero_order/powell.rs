@@ -48,7 +48,7 @@ where
     F: Fn(&Array1<A>) -> A,
 {
     let (maxiter, maxfev) = default_nb_iter(x0.len(), maxiter, maxfev, 1000);
-    let mut powell = PowellIterates::new(f, x0.clone(), Some(maxfev), direc, xtol, ftol, bounds)?;
+    let mut powell = Powell::new(f, x0.clone(), Some(maxfev), direc, xtol, ftol, bounds)?;
     powell.optimize(Some(maxiter))
 }
 
@@ -199,7 +199,7 @@ where
     }
 }
 /// Represents the sequence of iterates computed by the Powell algorithm.
-pub struct PowellIterates<F, A> {
+pub struct Powell<F, A> {
     f: F,
     x: Array1<A>,
     x1: Array1<A>,
@@ -214,7 +214,7 @@ pub struct PowellIterates<F, A> {
     iter: usize,
 }
 
-impl<F, A> PowellIterates<F, A> {
+impl<F, A> Powell<F, A> {
     pub fn new<B>(
         f: F,
         x0: Array1<A>,
@@ -285,7 +285,7 @@ impl<F, A> PowellIterates<F, A> {
     }
 }
 
-impl<F, A> core::iter::Iterator for PowellIterates<F, A>
+impl<F, A> core::iter::Iterator for Powell<F, A>
 where
     A: Scalar<Array1<A>> + core::fmt::Debug,
     F: Fn(&Array1<A>) -> A,
@@ -394,7 +394,7 @@ where
     }
 }
 
-impl<A, F> Optimizer for PowellIterates<F, A>
+impl<A, F> Optimizer for Powell<F, A>
 where
     A: Scalar<Array1<A>> + core::fmt::Debug,
     F: Fn(&Array1<A>) -> A,

@@ -5,8 +5,8 @@ mod nelder_mead;
 mod powell;
 mod scalar;
 
-pub use nelder_mead::{nelder_mead, NelderMeadIterates};
-pub use powell::{powell, PowellIterates};
+pub use nelder_mead::{nelder_mead, NelderMead};
+pub use powell::{powell, Powell};
 pub use scalar::{bracket, brent_bounded, brent_unbounded, root::brentq};
 
 use crate::Array1;

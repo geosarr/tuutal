@@ -48,7 +48,7 @@ where
     F: Fn(&Array1<A>) -> A,
 {
     let (maxiter, maxfev) = default_nb_iter(x0.len(), maxiter, maxfev, 200);
-    let mut nelder_mead = NelderMeadIterates::new(
+    let mut nelder_mead = NelderMead::new(
         f,
         x0.clone(),
         Some(maxfev),
@@ -337,7 +337,7 @@ where
 }
 
 /// Represents the sequence of iterates computed by the Nelder-Mead algorithm.
-pub struct NelderMeadIterates<F, A> {
+pub struct NelderMead<F, A> {
     f: F,
     maxfev: usize,
     sim: Array2<A>,
@@ -354,7 +354,7 @@ pub struct NelderMeadIterates<F, A> {
     iter: usize,
 }
 
-impl<F, A> NelderMeadIterates<F, A> {
+impl<F, A> NelderMead<F, A> {
     pub fn new<B>(
         f: F,
         x0: Array1<A>,
@@ -511,7 +511,7 @@ impl<F, A> NelderMeadIterates<F, A> {
     }
 }
 
-impl<F, A> core::iter::Iterator for NelderMeadIterates<F, A>
+impl<F, A> core::iter::Iterator for NelderMead<F, A>
 where
     F: Fn(&Array1<A>) -> A,
     A: Scalar<Array1<A>>,
@@ -599,7 +599,7 @@ where
     }
 }
 
-impl<A, F> Optimizer for NelderMeadIterates<F, A>
+impl<A, F> Optimizer for NelderMead<F, A>
 where
     F: Fn(&Array1<A>) -> A,
     A: Scalar<Array1<A>>,
